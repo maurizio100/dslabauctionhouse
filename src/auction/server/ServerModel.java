@@ -128,7 +128,8 @@ implements ExitSender, AuctionCommandReceiverClient, AuctionCommandReceiverServe
 			String clientName = splittedString[1];
 			int udpPort = Integer.parseInt(splittedString[2]);
 			clientManager.loginClient(clientName, udpPort, servedClient);
-
+			//TODO Rückmeldung über TCP
+			servedClient.receiveFeedback("!ok");
 		}catch(NumberFormatException nfe){
 			servedClient.receiveFeedback("Couldn't login: The udpPort must be numeric and digit between 1024 and 65535!");
 		}
@@ -212,5 +213,11 @@ implements ExitSender, AuctionCommandReceiverClient, AuctionCommandReceiverServe
 	@Override
 	public void invokeShutdown() {
 		this.sendExit();
+	}
+
+	@Override
+	public void ok() {
+		// TODO Auto-generated method stub
+		
 	}
 }

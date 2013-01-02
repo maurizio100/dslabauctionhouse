@@ -43,5 +43,15 @@ public class InputSystem extends Thread{
 			in.close(); 
 			sendMessage("Local InputStream shut down."); 
 		}catch( IOException e ){}
+	}
+
+	public String getInput() {
+		try {
+			return in.readLine();
+		} catch (IOException e) 
+		{
+			e.printStackTrace();
+		}
+		return null;
 	}	
 }

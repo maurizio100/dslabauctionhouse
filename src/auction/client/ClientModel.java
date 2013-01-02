@@ -1,6 +1,19 @@
 package auction.client;
 
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.security.Key;
+import java.security.KeyPair;
+import java.security.PrivateKey;
 import java.util.ArrayList;
+
+import javax.crypto.spec.SecretKeySpec;
+
+import org.bouncycastle.openssl.PEMReader;
+import org.bouncycastle.openssl.PasswordFinder;
 
 import auction.commands.AuctionCommandReceiverClient;
 import auction.commands.AuctionCommandReceiverServer;
@@ -19,11 +32,13 @@ import auction.communication.ExitObserver;
 import auction.communication.ExitSender;
 import auction.communication.MessageReceiver;
 import auction.communication.MessageSender;
+import auction.crypt.AESCrypt;
+import auction.crypt.Crypt;
+import auction.crypt.RSACrypt;
 import auction.exceptions.NotACommandException;
 import auction.io.IOInstructionReceiver;
 import auction.io.IOInstructionSender;
 import auction.io.IOUnit;
-
 
 public class ClientModel 
 implements MessageReceiver, IOInstructionSender, ExitSender, AuctionCommandReceiverClient, ClientCommandReceiver, AuctionCommandReceiverServer{
@@ -37,6 +52,9 @@ implements MessageReceiver, IOInstructionSender, ExitSender, AuctionCommandRecei
 	private String currentCommand = "";
 	private String[] splittedString;
 	private int udpPort = -1;
+	private String pathToPublicKey = null;
+	private String pathToPrivateKey = null;
+	private Crypt crypt = null;
 	
 	private Command[] availableCommands = {
 			new BidAuctionCommand(this),
@@ -61,6 +79,13 @@ implements MessageReceiver, IOInstructionSender, ExitSender, AuctionCommandRecei
 		commandRepository = new CommandRepository(availableCommands);
 		this.udpPort = udpPort;
 	}
+	
+	public ClientModel(MessageSender lmc,
+			MessageReceiver nmfc, int udpPort, String pathToPublicKey, String pathToPrivateKey) {
+		this(lmc, nmfc, udpPort);
+		this.pathToPrivateKey = pathToPrivateKey;
+		this.pathToPublicKey = pathToPublicKey;
+	}
 
 	@Override
 	public void registerIOReceiver(IOInstructionReceiver receiver) {
@@ -73,6 +98,9 @@ implements MessageReceiver, IOInstructionSender, ExitSender, AuctionCommandRecei
 	}
 
 	private void parseMessage(String message) {
+		//Nachricht entschlüsseln
+		crypt.decodeMessage(message);
+		
 		if( this.isCommand(message) ){
 			try{ 
 				Command c = parseCommand(message);
@@ -97,6 +125,12 @@ implements MessageReceiver, IOInstructionSender, ExitSender, AuctionCommandRecei
 	}
 
 	private synchronized void sendToNetwork(String message){
+		
+		//falls Crypt != null mit Crypt verschlüsseln//
+		if(crypt != null)
+		{
+			message = crypt.encodeMessage(message);
+		}
 		networkMessenger.receiveMessage(message);
 	}
 	
@@ -143,9 +177,35 @@ implements MessageReceiver, IOInstructionSender, ExitSender, AuctionCommandRecei
 			return;
 		}
 
-		ioReceiver.setUser(splittedString[1]);
+//		ioReceiver.setUser(splittedString[1]);
 		this.sendToNetwork(currentCommand + " " + udpPort);
-		loggedIn = true;
+		
+		//Passwortabfrage für Private Key
+		PEMReader in;
+		try {
+			pathToPrivateKey += splittedString[1]+".pem";
+			in = new PEMReader(new FileReader(pathToPrivateKey), new PasswordFinder() {
+				@Override
+				public char[] getPassword() {
+				// reads the password from standard input for decrypting the private key
+				sendToIOUnit("Enter pass phrase:");
+				return ioReceiver.performInput().toCharArray();
+				}
+				});
+			KeyPair keyPair = (KeyPair) in.readObject(); 
+			PrivateKey privateKey = keyPair.getPrivate();
+			crypt = new RSACrypt(pathToPublicKey, privateKey);
+			
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+//		loggedIn = true; --> bei !ok befehl
 	}
 
 	@Override
@@ -234,6 +294,23 @@ implements MessageReceiver, IOInstructionSender, ExitSender, AuctionCommandRecei
 	@Override
 	public void invokeShutdown() {
 		this.sendExit();
+	}
+
+	@Override
+	public void ok() {
+		splittedString = currentCommand.split(" ", 5);
+		
+		//wenn clientchallenge passt dann
+		if(crypt.check(splittedString[1].getBytes()))
+		{
+			crypt = new AESCrypt(splittedString[3], splittedString[4]);
+			this.sendToNetwork(splittedString[2]);
+			loggedIn = true;
+		}
+		else
+		{
+			this.sendToIOUnit("Login Failed!");
+		}
 	}
 	
 }

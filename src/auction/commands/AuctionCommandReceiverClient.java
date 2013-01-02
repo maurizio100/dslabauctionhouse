@@ -6,6 +6,7 @@ public interface AuctionCommandReceiverClient {
 	public void bidForAuction();
 	public void list();
 	public void exit();
+	public void ok();
 
 	
 }

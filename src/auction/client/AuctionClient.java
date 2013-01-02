@@ -41,7 +41,7 @@ public class AuctionClient {
 			LocalMessageController lmc = new LocalMessageController();
 			NetworkMessageForwardingController nmfc = new NetworkMessageForwardingController();
 			
-			model = new ClientModel( lmc, nmfc, udpPort );
+			model = new ClientModel(lmc, nmfc, udpPort, args[3], args[4]);
 			
 			IOUnit iounit = new IOUnit( lmc, model, model, WELCOME );
 			ClientTCPPort socketPort = new ClientTCPPort( host, tcpPort, nmfc, lmc, model );

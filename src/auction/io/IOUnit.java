@@ -63,6 +63,10 @@ public class IOUnit implements IOInstructionReceiver, MessageReceiver, ExitObser
 		localMessenger.invokeShutdown();
 		
 	}
-	
+
+	@Override
+	public String performInput() {
+		return input.getInput();
+	}
 	
 }
