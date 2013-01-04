@@ -134,4 +134,20 @@ public class ClientManager implements ClientOperator, ExitObserver{
 		executorService.shutdown();
 	}
 
+	@Override
+	public void performConfirmNotification(ClientThread groupBidder) {
+		//TODO implement performConfirmNotification
+	}
+
+	@Override
+	public void sendGroupBidNotification(GroupBid gb) {
+		ClientThread groupBidder = gb.getGroupBidder();
+		
+		for( ClientThread ct : loggedInClients.values() ){
+			if( ct != groupBidder ){
+				ct.receiveFeedback(groupBidder.getClientName() + " has started the following group bid and needs two confirmations\n" + gb);
+			}
+		}
+		
+	}
 }

@@ -121,5 +121,10 @@ public class AuctionManager implements AuctionOperator, AuctionEndReceiver, Exit
 	public void exit() {
 		timer.cancel();
 	}
+
+	@Override
+	public int getAuctionAmount() {
+		return activeAuctions.size();
+	}
 	
 }

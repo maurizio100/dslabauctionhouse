@@ -22,12 +22,16 @@ import auction.commands.BidAuctionCommand;
 import auction.commands.ClientCommandReceiver;
 import auction.commands.Command;
 import auction.commands.CommandRepository;
+import auction.commands.ConfirmGroupBidCommand;
 import auction.commands.CreateAuctionCommand;
 import auction.commands.ExitCommand;
+import auction.commands.GroupBidAuctionCommand;
 import auction.commands.ListCommand;
 import auction.commands.LoginCommand;
 import auction.commands.LogoutCommand;
+import auction.commands.NotifyConfirmGroupBidCommand;
 import auction.commands.OverbidCommand;
+import auction.commands.RejectGroupBidCommand;
 import auction.communication.ExitObserver;
 import auction.communication.ExitSender;
 import auction.communication.MessageReceiver;
@@ -64,7 +68,11 @@ implements MessageReceiver, IOInstructionSender, ExitSender, AuctionCommandRecei
 			new LoginCommand(this),
 			new LogoutCommand(this),
 			new OverbidCommand(this),
-			new AuctionEndedCommand(this)
+			new AuctionEndedCommand(this),
+			new GroupBidAuctionCommand(this),
+			new RejectGroupBidCommand(this),
+			new ConfirmGroupBidCommand(this),
+			new NotifyConfirmGroupBidCommand(this)
 	};
 	
 	public ClientModel(MessageSender lmc,
@@ -98,7 +106,7 @@ implements MessageReceiver, IOInstructionSender, ExitSender, AuctionCommandRecei
 	}
 
 	private void parseMessage(String message) {
-		//Nachricht entschlüsseln
+		//Nachricht entschlï¿½sseln
 		crypt.decodeMessage(message);
 		
 		if( this.isCommand(message) ){
@@ -126,7 +134,7 @@ implements MessageReceiver, IOInstructionSender, ExitSender, AuctionCommandRecei
 
 	private synchronized void sendToNetwork(String message){
 		
-		//falls Crypt != null mit Crypt verschlüsseln//
+		//falls Crypt != null mit Crypt verschlï¿½sseln//
 		if(crypt != null)
 		{
 			message = crypt.encodeMessage(message);
@@ -180,7 +188,7 @@ implements MessageReceiver, IOInstructionSender, ExitSender, AuctionCommandRecei
 //		ioReceiver.setUser(splittedString[1]);
 		this.sendToNetwork(currentCommand + " " + udpPort);
 		
-		//Passwortabfrage für Private Key
+		//Passwortabfrage fï¿½r Private Key
 		PEMReader in;
 		try {
 			pathToPrivateKey += splittedString[1]+".pem";
@@ -311,6 +319,24 @@ implements MessageReceiver, IOInstructionSender, ExitSender, AuctionCommandRecei
 		{
 			this.sendToIOUnit("Login Failed!");
 		}
+	}
+
+	@Override
+	public void confirmGroupBid() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void rejectGroupBid() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void notifyConfirmed() {
+		// TODO Auto-generated method stub
+		
 	}
 	
 }

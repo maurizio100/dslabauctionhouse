@@ -1,6 +1,9 @@
 package auction.server;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Queue;
+
 import auction.commands.AuctionCommandReceiverClient;
 import auction.commands.AuctionCommandReceiverServer;
 import auction.commands.AuctionEndedCommand;
@@ -10,6 +13,7 @@ import auction.commands.Command;
 import auction.commands.CommandRepository;
 import auction.commands.CreateAuctionCommand;
 import auction.commands.ExitCommand;
+import auction.commands.GroupBidAuctionCommand;
 import auction.commands.ListCommand;
 import auction.commands.LoginCommand;
 import auction.commands.LogoutCommand;
@@ -26,9 +30,12 @@ import auction.io.IOUnit;
 
 
 public class ServerModel 
-implements ExitSender, AuctionCommandReceiverClient, AuctionCommandReceiverServer, ClientCommandReceiver, CommandReceiver,MessageReceiver, IOInstructionSender{
+implements ExitSender, AuctionCommandReceiverServer, ClientCommandReceiver, CommandReceiver,MessageReceiver, IOInstructionSender{
 
 	private ArrayList<ExitObserver> eObservers = null;
+	private HashMap<Integer,GroupBid> groupBids = null;
+	private GroupBidQueue queuedGroupBids = null; 
+	
 	private CommandRepository commandRepository = null;
 	private String currentCommand = "";
 	private Client servedClient = null;
@@ -46,15 +53,20 @@ implements ExitSender, AuctionCommandReceiverClient, AuctionCommandReceiverServe
 			new LoginCommand(this),
 			new LogoutCommand(this),
 			new AuctionEndedCommand(this),
-			new OverbidCommand(this)
+			new OverbidCommand(this),
+			new GroupBidAuctionCommand(this)
+			//TODO add commands to server
 	};
 
 	public ServerModel(MessageSender lmc,
 			CommandSender cc, ClientOperator clientManager) {
 
 		eObservers = new ArrayList<ExitObserver>();		
+		groupBids = new HashMap<Integer,GroupBid>();
+		
 		commandRepository = new CommandRepository(availableCommands);
 		this.clientManager = clientManager;
+		queuedGroupBids = new GroupBidQueue();
 		
 		auctionManager = new AuctionManager(this,this);
 		lmc.registerMessageReceiver(this);
@@ -107,6 +119,10 @@ implements ExitSender, AuctionCommandReceiverClient, AuctionCommandReceiverServe
 		return message.charAt(0) == '!';
 	}
 
+	private void sendGroupBidNotification(GroupBid groupBid) {
+		clientManager.sendGroupBidNotification(groupBid);	
+	}
+	
 	@Override
 	public void registerExitObserver(ExitObserver e) {
 		eObservers.add(e);
@@ -128,7 +144,7 @@ implements ExitSender, AuctionCommandReceiverClient, AuctionCommandReceiverServe
 			String clientName = splittedString[1];
 			int udpPort = Integer.parseInt(splittedString[2]);
 			clientManager.loginClient(clientName, udpPort, servedClient);
-			//TODO Rückmeldung über TCP
+			//TODO Rï¿½ckmeldung ï¿½ber TCP
 			servedClient.receiveFeedback("!ok");
 		}catch(NumberFormatException nfe){
 			servedClient.receiveFeedback("Couldn't login: The udpPort must be numeric and digit between 1024 and 65535!");
@@ -168,12 +184,27 @@ implements ExitSender, AuctionCommandReceiverClient, AuctionCommandReceiverServe
 		try{
 			int auctionNumber = Integer.parseInt(splittedString[1]);
 			double bid = Double.parseDouble(splittedString[2]);
-
-			auctionManager.bidForAuction(auctionNumber, servedClient, bid);
+			
+			if( currentCommand.equals("groupBid")){
+				GroupBid gb = new GroupBid(auctionNumber,bid, servedClient);
+				if( groupBids.size() < auctionManager.getAuctionAmount() ){			
+					//TODO is a group on the same auction allowed???
+					groupBids.put(auctionNumber, gb);
+					this.sendGroupBidNotification(gb);
+				}else{
+					servedClient.receiveFeedback("There are already too much groupBids! The Bid will be set when it is possible!");
+					queuedGroupBids.enqueue(gb);
+				}
+				
+			}else{
+				auctionManager.bidForAuction(auctionNumber, servedClient, bid);
+			}
+			
 		}catch( NumberFormatException nfe ){
 			servedClient.receiveFeedback("Couldn't bid for auction: auctionNumber and bid-number must be numeric.");
 		}
 	}
+
 
 	@Override
 	public void list() {
@@ -216,8 +247,21 @@ implements ExitSender, AuctionCommandReceiverClient, AuctionCommandReceiverServe
 	}
 
 	@Override
-	public void ok() {
+	public void ok() {}
+
+	@Override
+	public void confirmGroupBid() {
+		
+	}
+
+	@Override
+	public void rejectGroupBid() {
 		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void notifyConfirmed() {
 		
 	}
 }
