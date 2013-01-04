@@ -59,6 +59,8 @@ implements MessageReceiver, IOInstructionSender, ExitSender, AuctionCommandRecei
 	private String pathToPublicKey = null;
 	private String pathToPrivateKey = null;
 	private Crypt crypt = null;
+
+	private boolean confirmationSent = false;
 	
 	private Command[] availableCommands = {
 			new BidAuctionCommand(this),
@@ -323,20 +325,34 @@ implements MessageReceiver, IOInstructionSender, ExitSender, AuctionCommandRecei
 
 	@Override
 	public void confirmGroupBid() {
-		// TODO Auto-generated method stub
+		if( !loggedIn ){
+			this.sendToIOUnit("Auction cant be created - You are not Logged in!");
+			return;
+		}
+		splittedString = currentCommand.split(" ", 4);
+		if( splittedString.length != 4 ){
+			this.sendSyntaxError(splittedString[0], "confirm <auction-id> <bid> <Username>");
+			return;
+		}
+
+		this.sendToNetwork(currentCommand);
+		confirmationSent = true;
 		
+		while( confirmationSent ){}
 	}
 
 	@Override
 	public void rejectGroupBid() {
-		// TODO Auto-generated method stub
-		
+		confirmationSent = false;
+		splittedString = currentCommand.split(" ", 2);
+
+		this.sendToIOUnit("Error at confirmation: " + splittedString[1] );
 	}
 
 	@Override
 	public void notifyConfirmed() {
-		// TODO Auto-generated method stub
-		
+		confirmationSent = false;
+		this.sendToIOUnit("Groupbid confirmed.");
 	}
 	
 }

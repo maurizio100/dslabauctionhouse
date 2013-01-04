@@ -135,8 +135,10 @@ public class ClientManager implements ClientOperator, ExitObserver{
 	}
 
 	@Override
-	public void performConfirmNotification(ClientThread groupBidder) {
-		//TODO implement performConfirmNotification
+	public void performConfirmNotification(ArrayList<Client> confirmers) {
+		for( Client c : confirmers ){
+			c.sendFeedback("!confirm");
+		}
 	}
 
 	@Override
@@ -149,5 +151,10 @@ public class ClientManager implements ClientOperator, ExitObserver{
 			}
 		}
 		
+	}
+
+	@Override
+	public void sendFeedback(Client c, String feedback) {
+		c.sendFeedback(feedback);
 	}
 }

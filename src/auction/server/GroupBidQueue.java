@@ -31,4 +31,8 @@ public class GroupBidQueue{
 		head = head.next;
 		return elem;
 	}
+	
+	public boolean isEmpty(){
+		return head == null;
+	}
 }
