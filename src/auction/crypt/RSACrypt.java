@@ -18,21 +18,22 @@ import org.bouncycastle.util.encoders.Base64;
 
 public class RSACrypt implements Crypt{
 
-	private byte[] secureNumber = new byte[32];
 	private PublicKey publicKey;
 	private PrivateKey privateKey;
 	
+	public RSACrypt(PrivateKey privateKey)
+	{
+		this.privateKey = privateKey;
+	}
+	
 	public RSACrypt(String pathToPublicKey, PrivateKey privateKey) throws IOException
 	{
-		//client-challenge erstellen und in Base64 umwandeln wegen leerzeichen
-		new SecureRandom().nextBytes(secureNumber);
-		secureNumber = Base64.encode(secureNumber);
-		
+		this(privateKey);
 		
 		//Private Key vom Client und Public Key vom Server müssen noch initialisert werden
 		PEMReader in = new PEMReader(new FileReader(pathToPublicKey)); 
 		this.publicKey = (PublicKey) in.readObject();
-		this.privateKey = privateKey;
+		
 		
 	}
 	
@@ -41,7 +42,6 @@ public class RSACrypt implements Crypt{
 		
 		//Nachricht wird verschlüsselt und danach in Base64 umgewandelt
 		try {
-			message = message + " " + secureNumber;
 			byte[] cryptmessage = null; 
 			
 			Cipher c = Cipher.getInstance("RSA");
@@ -49,7 +49,7 @@ public class RSACrypt implements Crypt{
 			cryptmessage = c.doFinal(message.getBytes());
 			
 			cryptmessage = Base64.encode(cryptmessage);
-			return cryptmessage.toString();
+			return new String(cryptmessage);
 			
 		} catch (NoSuchAlgorithmException e) {
 			// TODO Auto-generated catch block
@@ -76,14 +76,14 @@ public class RSACrypt implements Crypt{
 		
 		//Nachricht wird entschlüsselt und danach in Base64 umgewandelt
 		try {
-			byte[] cryptmessage = message.getBytes(); 
+			byte[] cryptmessage = Base64.decode(message);
 			
 			Cipher c = Cipher.getInstance("RSA");
 			c.init(Cipher.DECRYPT_MODE, privateKey);
-			cryptmessage = Base64.decode(cryptmessage);
+			
 			cryptmessage = c.doFinal(cryptmessage);
 			
-			return cryptmessage.toString();
+			return new String(cryptmessage);
 			
 		} catch (NoSuchAlgorithmException e) {
 			// TODO Auto-generated catch block
@@ -103,17 +103,6 @@ public class RSACrypt implements Crypt{
 		} 
 		
 		return null;
-	}
-	
-	@Override
-	public boolean check(byte[] s)
-	{
-		s = Base64.decode(s);
-		if(secureNumber.equals(s))
-		{
-			return true;
-		}
-		return false;
 	}
 
 }

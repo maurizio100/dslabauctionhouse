@@ -1,8 +1,17 @@
 package auction.server;
 
 import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
+import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.HashMap;
+
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+
+import org.bouncycastle.util.encoders.Base64;
+
 import auction.commands.AuctionCommandReceiverClient;
 import auction.commands.AuctionCommandReceiverServer;
 import auction.commands.AuctionEndedCommand;
@@ -22,6 +31,7 @@ import auction.communication.ExitObserver;
 import auction.communication.ExitSender;
 import auction.communication.MessageReceiver;
 import auction.communication.MessageSender;
+import auction.crypt.AESCrypt;
 import auction.crypt.Crypt;
 import auction.crypt.RSACrypt;
 import auction.io.IOInstructionReceiver;
@@ -41,9 +51,12 @@ implements ExitSender, AuctionCommandReceiverClient, AuctionCommandReceiverServe
 
 	private AuctionOperator auctionManager = null; 
 	private ClientOperator clientManager = null;
+	private HashMap<String, Crypt> cryptuser = null;
 	private Crypt crypt = null;
 	private String pathToPublicKey = null;
 	private PrivateKey privateKey = null;
+	private HashMap<String, byte[]> secureNumberUser = new HashMap<String, byte[]>();
+	private String pathToDir = null;
 
 	private Command[] availableCommands = {
 			new BidAuctionCommand(this),
@@ -62,18 +75,23 @@ implements ExitSender, AuctionCommandReceiverClient, AuctionCommandReceiverServe
 		eObservers = new ArrayList<ExitObserver>();		
 		commandRepository = new CommandRepository(availableCommands);
 		this.clientManager = clientManager;
-		
+
 		auctionManager = new AuctionManager(this,this);
 		lmc.registerMessageReceiver(this);
 		cc.registerCommandReceiver(this);
 	}
-	
+
 	public ServerModel(MessageSender lmc,
-			CommandSender cc, ClientOperator clientManager, String pathToPublicKey,PrivateKey privateKey) {
+			CommandSender cc, ClientOperator clientManager, String pathToPublicKey,PrivateKey privateKey, String pathToDir) {
 
 		this(lmc, cc, clientManager);
 		this.privateKey = privateKey;
 		this.pathToPublicKey = pathToPublicKey;
+		this.pathToDir = pathToDir;
+		//server-challenge erstellen und in Base64 umwandeln wegen leerzeichen
+
+		this.cryptuser = new HashMap<String, Crypt>();
+		crypt = new RSACrypt(privateKey);
 	}
 
 	@Override
@@ -95,7 +113,7 @@ implements ExitSender, AuctionCommandReceiverClient, AuctionCommandReceiverServe
 	}
 
 	@Override
-	public void receiveCommand(String command, Client source) {
+	public synchronized void receiveCommand(String command, Client source) {
 		servedClient = source;
 		this.parseMessage(command);
 		servedClient = null;
@@ -103,16 +121,29 @@ implements ExitSender, AuctionCommandReceiverClient, AuctionCommandReceiverServe
 
 
 	private void parseMessage(String message) {
-		if(crypt != null)
+		Command c = null;
+		if( this.isCommand(message) ){
+			c = parseCommand(message);
+			currentCommand = message;
+		}
+		else
 		{
 			message = crypt.decodeMessage(message);
+			if( this.isCommand(message) ){
+				c = parseCommand(message);
+				currentCommand = message;
+			}
+			else
+			{
+				checkClientServerChallenge(message.getBytes());
+			}
 		}
-		if( this.isCommand(message) ){
-			Command c = parseCommand(message);
-			currentCommand = message;
+		if(c != null)
+		{
 			c.execute();
 			currentCommand = null;
 		}
+
 	}
 
 	private Command parseCommand(String command){
@@ -147,9 +178,65 @@ implements ExitSender, AuctionCommandReceiverClient, AuctionCommandReceiverServe
 			String clientName = splittedString[1];
 			int udpPort = Integer.parseInt(splittedString[2]);
 			clientManager.loginClient(clientName, udpPort, servedClient);
+
+			String userPublicKey = pathToDir +clientName+".pub.pem";
+
 			//Rückmeldung über TCP
-			servedClient.receiveFeedback("!ok");
-			
+			if(!cryptuser.containsKey(clientName))
+			{
+				try {
+					cryptuser.put(clientName, new RSACrypt(userPublicKey, privateKey));
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+
+
+
+				//Für jeden Client neue server-challenge
+				byte[] number = new byte[32];
+				new SecureRandom().nextBytes(number);
+				number = Base64.encode(number);			
+				secureNumberUser.put(clientName, number);
+
+				//Für Iv-Param
+				byte[] iv = new byte[16];
+				new SecureRandom().nextBytes(iv);
+				iv = Base64.encode(iv);
+
+
+				KeyGenerator generator;
+				SecretKey key = null;
+				try {
+					generator = KeyGenerator.getInstance("AES");
+					generator.init(256); 
+					key = generator.generateKey(); 
+
+				} catch (NoSuchAlgorithmException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+
+				String secretkey = new String(Base64.encode(key.getEncoded()));
+				String serverchallenge = new String(secureNumberUser.get(clientName));
+				String ivparam = new String(iv);
+				String clientchallenge = splittedString[3];
+
+				sendToIOUnit(secretkey + " " + ivparam);
+				
+				String cryptmessage = "!ok"+" "+ clientchallenge + " " + serverchallenge + " " + secretkey + " " + ivparam;
+
+				cryptmessage = cryptuser.get(clientName).encodeMessage(cryptmessage);
+
+				
+				servedClient.receiveFeedback(cryptmessage);
+				
+				cryptuser.put(clientName, new AESCrypt(key, iv));
+			}
+			else
+			{
+				servedClient.receiveFeedback("User alredy logged in!");
+			}
+
 		}catch(NumberFormatException nfe){
 			servedClient.receiveFeedback("Couldn't login: The udpPort must be numeric and digit between 1024 and 65535!");
 		} 
@@ -238,6 +325,20 @@ implements ExitSender, AuctionCommandReceiverClient, AuctionCommandReceiverServe
 	@Override
 	public void ok() {
 		// TODO Auto-generated method stub
-		
+
+	}
+
+	private void checkClientServerChallenge(byte[] number)
+	{
+		sendToIOUnit("JA");
+		//TODO
+		if(!number.equals(secureNumberUser.get(servedClient.getClientName())))
+		{
+			//TODO send error message and reset Client
+		}
+		else
+		{
+			sendToIOUnit("login successful!");
+		}
 	}
 }

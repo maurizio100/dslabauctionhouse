@@ -76,7 +76,7 @@ public class AuctionServer {
 
 			ClientManager clientManager = new ClientManager(cc, lmc);
 //			ServerModel model = new ServerModel(lmc, cc, clientManager);
-			ServerModel model = new ServerModel(lmc, cc, clientManager, args[1], privateKey);
+			ServerModel model = new ServerModel(lmc, cc, clientManager, args[1], privateKey, args[4]);
 			model.registerExitObserver(clientManager);
 			
 			ServerTCPPort serverTCPPort = new ServerTCPPort(tcpPort, clientManager, lmc, model);

@@ -1,6 +1,7 @@
 package auction.crypt;
 
 
+import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.Key;
 import java.security.NoSuchAlgorithmException;
@@ -10,19 +11,21 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.bouncycastle.util.encoders.Base64;
 
 public class AESCrypt implements Crypt{
 	
-	private SecureRandom iv;
+	private byte[] iv;
 	private Key secretKey;
-	public AESCrypt(String key, String iv)
+	
+	public AESCrypt(Key key, byte[] iv)
 	{
 		//initialize <secret-key> and <iv-parameter>
-		this.secretKey = new SecretKeySpec(key.getBytes(), "AES");
-		this.iv = new SecureRandom(iv.getBytes());
+		this.secretKey = key;
+		this.iv = iv;
 	}
 	
 	@Override
@@ -32,10 +35,10 @@ public class AESCrypt implements Crypt{
 		Cipher c;
 		try {
 			c = Cipher.getInstance("AES");
-			c.init(Cipher.ENCRYPT_MODE, secretKey, iv);
+			c.init(Cipher.ENCRYPT_MODE, secretKey, new IvParameterSpec(iv));
 			cryptmessage = c.doFinal(message.getBytes());
 			cryptmessage = Base64.encode(cryptmessage);
-			return cryptmessage.toString();
+			return new String(cryptmessage);
 			
 		} catch (NoSuchAlgorithmException e) {
 			// TODO Auto-generated catch block
@@ -50,6 +53,9 @@ public class AESCrypt implements Crypt{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (BadPaddingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InvalidAlgorithmParameterException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
@@ -63,10 +69,10 @@ public class AESCrypt implements Crypt{
 		Cipher c;
 		try {
 			c = Cipher.getInstance("AES");
-			c.init(Cipher.DECRYPT_MODE, secretKey, iv);
+			c.init(Cipher.DECRYPT_MODE, secretKey, new IvParameterSpec(iv));
 			cryptmessage = c.doFinal(message.getBytes());
 			cryptmessage = Base64.encode(cryptmessage);
-			return cryptmessage.toString();
+			return new String(cryptmessage);
 			
 		} catch (NoSuchAlgorithmException e) {
 			// TODO Auto-generated catch block
@@ -83,14 +89,12 @@ public class AESCrypt implements Crypt{
 		} catch (BadPaddingException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} catch (InvalidAlgorithmParameterException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 		
 		return null;
 	}
 
-	@Override
-	public boolean check(byte[] number) {
-		// TODO Auto-generated method stub
-		return false;
-	}
 }

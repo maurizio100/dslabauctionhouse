@@ -8,12 +8,15 @@ import java.io.InputStreamReader;
 import java.security.Key;
 import java.security.KeyPair;
 import java.security.PrivateKey;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 
+import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.bouncycastle.openssl.PEMReader;
 import org.bouncycastle.openssl.PasswordFinder;
+import org.bouncycastle.util.encoders.Base64;
 
 import auction.commands.AuctionCommandReceiverClient;
 import auction.commands.AuctionCommandReceiverServer;
@@ -56,6 +59,7 @@ implements MessageReceiver, IOInstructionSender, ExitSender, AuctionCommandRecei
 	private String pathToPublicKey = null;
 	private String pathToPrivateKey = null;
 	private Crypt crypt = null;
+	private byte[] secureNumber = new byte[32];
 	
 	private Command[] availableCommands = {
 			new BidAuctionCommand(this),
@@ -87,6 +91,10 @@ implements MessageReceiver, IOInstructionSender, ExitSender, AuctionCommandRecei
 		this(lmc, nmfc, udpPort);
 		this.pathToPrivateKey = pathToPrivateKey;
 		this.pathToPublicKey = pathToPublicKey;
+		
+		//client-challenge erstellen und in Base64 umwandeln wegen leerzeichen
+		new SecureRandom().nextBytes(secureNumber);
+		secureNumber = Base64.encode(secureNumber);
 	}
 
 	@Override
@@ -101,6 +109,7 @@ implements MessageReceiver, IOInstructionSender, ExitSender, AuctionCommandRecei
 
 	private void parseMessage(String message) {
 		//Nachricht entschlüsseln
+
 		if(crypt != null)
 		{
 			message = crypt.decodeMessage(message);
@@ -183,13 +192,13 @@ implements MessageReceiver, IOInstructionSender, ExitSender, AuctionCommandRecei
 		}
 
 //		ioReceiver.setUser(splittedString[1]);
-		this.sendToNetwork(currentCommand + " " + udpPort);
+
 		
 		//Passwortabfrage für Private Key
 		PEMReader in;
 		try {
-			pathToPrivateKey += splittedString[1]+".pem";
-			in = new PEMReader(new FileReader(pathToPrivateKey), new PasswordFinder() {
+			String pathPrivateKey = pathToPrivateKey + splittedString[1]+".pem";
+			in = new PEMReader(new FileReader(pathPrivateKey), new PasswordFinder() {
 				@Override
 				public char[] getPassword() {
 				// reads the password from standard input for decrypting the private key
@@ -201,6 +210,9 @@ implements MessageReceiver, IOInstructionSender, ExitSender, AuctionCommandRecei
 			PrivateKey privateKey = keyPair.getPrivate();
 			crypt = new RSACrypt(pathToPublicKey, privateKey);
 			
+			String secnum = new String(secureNumber);
+			this.sendToNetwork(currentCommand + " " + udpPort + " " + secnum);
+			
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -208,8 +220,6 @@ implements MessageReceiver, IOInstructionSender, ExitSender, AuctionCommandRecei
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
-		
 //		loggedIn = true; --> bei !ok befehl
 	}
 
@@ -304,13 +314,22 @@ implements MessageReceiver, IOInstructionSender, ExitSender, AuctionCommandRecei
 	@Override
 	public void ok() {
 		splittedString = currentCommand.split(" ", 5);
-		
+		byte[] clientchallenge = splittedString[1].getBytes();
 		//wenn clientchallenge passt dann
-		if(crypt.check(splittedString[1].getBytes()))
+		
+		String c = new String(clientchallenge); 
+		String s = new String(secureNumber);
+		
+		if(s.equals(c))
 		{
-			crypt = new AESCrypt(splittedString[3], splittedString[4]);
+			
+			byte[] key = Base64.decode(splittedString[3].getBytes());
+			byte[] iv = Base64.decode(splittedString[4].getBytes());
+			
+			Key secretkey = new SecretKeySpec(key, "AES");
+			crypt = new AESCrypt(secretkey, iv);
+			
 			this.sendToNetwork(splittedString[2]);
-			loggedIn = true;
 		}
 		else
 		{

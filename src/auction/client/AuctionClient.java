@@ -26,7 +26,7 @@ public class AuctionClient {
 		ClientModel model = null;
 				
 		/*Arguments handling*/
-		if( args.length != 3){ usage(); System.exit(0); }
+		if( args.length != 5){ usage(); System.exit(0); }
 	
 		try{
 			host = args[0];
