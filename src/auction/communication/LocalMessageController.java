@@ -1,12 +1,15 @@
 package auction.communication;
 
+import auction.interfaces.IMessageReceiver;
+import auction.interfaces.IMessageSender;
 
-public class LocalMessageController implements MessageReceiver, MessageSender{
 
-	private MessageReceiver clientModel;
+public class LocalMessageController implements IMessageReceiver, IMessageSender{
+
+	private IMessageReceiver clientModel;
 	
 	@Override
-	public void registerMessageReceiver(MessageReceiver receiver) {
+	public void registerMessageReceiver(IMessageReceiver receiver) {
 		clientModel = receiver;
 	}
 

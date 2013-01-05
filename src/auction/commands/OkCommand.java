@@ -1,10 +1,13 @@
 package auction.commands;
 
-public class OkCommand implements Command {
+import auction.interfaces.IAuctionCommandReceiverClient;
+import auction.interfaces.ICommand;
 
-	private AuctionCommandReceiverClient receiver;
+public class OkCommand implements ICommand {
+
+	private IAuctionCommandReceiverClient receiver;
 	
-	public OkCommand(AuctionCommandReceiverClient receiver) {
+	public OkCommand(IAuctionCommandReceiverClient receiver) {
 		this.receiver = receiver;
 	}
 

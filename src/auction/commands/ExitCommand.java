@@ -1,10 +1,13 @@
 package auction.commands;
 
-public class ExitCommand implements Command{
+import auction.interfaces.IAuctionCommandReceiverClient;
+import auction.interfaces.ICommand;
 
-private AuctionCommandReceiverClient receiver;
+public class ExitCommand implements ICommand{
+
+private IAuctionCommandReceiverClient receiver;
 	
-	public ExitCommand(AuctionCommandReceiverClient receiver) {
+	public ExitCommand(IAuctionCommandReceiverClient receiver) {
 		this.receiver = receiver;
 	}
 

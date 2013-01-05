@@ -6,12 +6,12 @@ import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-import auction.communication.ExitObserver;
-import auction.communication.ExitSender;
-import auction.communication.MessageReceiver;
 import auction.exceptions.PortRangeException;
+import auction.interfaces.IExitObserver;
+import auction.interfaces.IExitSender;
+import auction.interfaces.IMessageReceiver;
 
-public class ServerTCPPort extends Thread implements ExitObserver{
+public class ServerTCPPort extends Thread implements IExitObserver{
 
 	private BufferedReader in = null;
 	private PrintWriter out = null;
@@ -19,9 +19,9 @@ public class ServerTCPPort extends Thread implements ExitObserver{
 	private int port = -1;
 	private ServerSocket s = null;
 	private ClientManager clientManager = null;
-	private MessageReceiver localMessenger = null;
+	private IMessageReceiver localMessenger = null;
 	
-	public ServerTCPPort( int port, ClientManager cm, MessageReceiver rcv, ExitSender ex) throws PortRangeException{
+	public ServerTCPPort( int port, ClientManager cm, IMessageReceiver rcv, IExitSender ex) throws PortRangeException{
 		this.port = port;
 		clientManager = cm;
 		ex.registerExitObserver(this);

@@ -1,10 +1,13 @@
 package auction.commands;
 
-public class NotifyConfirmGroupBidCommand implements Command {
+import auction.interfaces.IAuctionCommandReceiverClient;
+import auction.interfaces.ICommand;
 
-	private AuctionCommandReceiverClient receiver = null;
+public class NotifyConfirmGroupBidCommand implements ICommand {
+
+	private IAuctionCommandReceiverClient receiver = null;
 	
-	public NotifyConfirmGroupBidCommand(AuctionCommandReceiverClient receiver) {
+	public NotifyConfirmGroupBidCommand(IAuctionCommandReceiverClient receiver) {
 		this.receiver = receiver;
 	}
 

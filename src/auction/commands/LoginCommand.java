@@ -1,10 +1,13 @@
 package auction.commands;
 
-public class LoginCommand implements Command {
+import auction.interfaces.IClientCommandReceiver;
+import auction.interfaces.ICommand;
 
-	private ClientCommandReceiver recepient = null;
+public class LoginCommand implements ICommand {
+
+	private IClientCommandReceiver recepient = null;
 	
-	public LoginCommand(ClientCommandReceiver recepient) {
+	public LoginCommand(IClientCommandReceiver recepient) {
 		this.recepient = recepient;
 	}
 

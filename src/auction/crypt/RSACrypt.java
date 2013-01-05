@@ -15,8 +15,10 @@ import javax.crypto.NoSuchPaddingException;
 import org.bouncycastle.openssl.PEMReader;
 import org.bouncycastle.util.encoders.Base64;
 
+import auction.interfaces.ICrypt;
 
-public class RSACrypt implements Crypt{
+
+public class RSACrypt implements ICrypt{
 
 	private PublicKey publicKey;
 	private PrivateKey privateKey;
@@ -30,7 +32,7 @@ public class RSACrypt implements Crypt{
 	{
 		this(privateKey);
 		
-		//Private Key vom Client und Public Key vom Server müssen noch initialisert werden
+		//Private Key vom Client und Public Key vom Server mï¿½ssen noch initialisert werden
 		PEMReader in = new PEMReader(new FileReader(pathToPublicKey)); 
 		this.publicKey = (PublicKey) in.readObject();
 		
@@ -40,7 +42,7 @@ public class RSACrypt implements Crypt{
 	@Override
 	public String encodeMessage(String message) {
 		
-		//Nachricht wird verschlüsselt und danach in Base64 umgewandelt
+		//Nachricht wird verschlï¿½sselt und danach in Base64 umgewandelt
 		try {
 			byte[] cryptmessage = null; 
 			
@@ -74,7 +76,7 @@ public class RSACrypt implements Crypt{
 	@Override
 	public String decodeMessage(String message) {
 		
-		//Nachricht wird entschlüsselt und danach in Base64 umgewandelt
+		//Nachricht wird entschlï¿½sselt und danach in Base64 umgewandelt
 		try {
 			byte[] cryptmessage = Base64.decode(message);
 			

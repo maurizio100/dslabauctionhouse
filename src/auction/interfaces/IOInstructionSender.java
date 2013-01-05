@@ -1,4 +1,4 @@
-package auction.io;
+package auction.interfaces;
 
 public interface IOInstructionSender {
 

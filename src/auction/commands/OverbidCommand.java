@@ -1,10 +1,13 @@
 package auction.commands;
 
-public class OverbidCommand implements Command {
+import auction.interfaces.IAuctionCommandReceiverServer;
+import auction.interfaces.ICommand;
 
-	private AuctionCommandReceiverServer receiver = null;
+public class OverbidCommand implements ICommand {
+
+	private IAuctionCommandReceiverServer receiver = null;
 	
-	public OverbidCommand(AuctionCommandReceiverServer receiver) {
+	public OverbidCommand(IAuctionCommandReceiverServer receiver) {
 		this.receiver = receiver;
 	}
 

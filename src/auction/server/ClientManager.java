@@ -8,31 +8,33 @@ import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import auction.communication.CommandReceiver;
-import auction.communication.ExitObserver;
-import auction.communication.MessageReceiver;
+import auction.interfaces.IClientOperator;
+import auction.interfaces.IClientThread;
+import auction.interfaces.ICommandReceiver;
+import auction.interfaces.IExitObserver;
+import auction.interfaces.IMessageReceiver;
 
-public class ClientManager implements ClientOperator, ExitObserver{
+public class ClientManager implements IClientOperator, IExitObserver{
 
-	private CommandReceiver commandMessenger = null;
+	private ICommandReceiver commandMessenger = null;
 	private ExecutorService executorService = null;	
-	private MessageReceiver localMessenger = null;
+	private IMessageReceiver localMessenger = null;
 
-	private HashMap<String, ClientThread> loggedInClients = null;
+	private HashMap<String, IClientThread> loggedInClients = null;
 	private HashMap<String, ArrayList<String>> queuedNotifications = null;
-	private ArrayList<ClientThread> allClients = null;
+	private ArrayList<IClientThread> allClients = null;
 
 	private ServerUDPPort serverUDPPort = null;
 
-	public ClientManager(CommandReceiver commandController, MessageReceiver rcv) {
+	public ClientManager(ICommandReceiver commandController, IMessageReceiver rcv) {
 		commandMessenger = commandController;
 		executorService = Executors.newCachedThreadPool();
 		localMessenger = rcv;
 		serverUDPPort = new ServerUDPPort();
 
-		loggedInClients = new HashMap<String,ClientThread>();
+		loggedInClients = new HashMap<String,IClientThread>();
 		queuedNotifications = new HashMap<String,ArrayList<String>>();
-		allClients = new ArrayList<ClientThread>();
+		allClients = new ArrayList<IClientThread>();
 	}
 
 	public void addNewClient(Socket newClient) {
@@ -45,7 +47,7 @@ public class ClientManager implements ClientOperator, ExitObserver{
 		}
 	}
 
-	private void deleteNotifications(ClientThread thread){
+	private void deleteNotifications(IClientThread thread){
 		ArrayList<String> notifications = queuedNotifications.get(thread.getClientName());
 		notifications.removeAll(notifications);
 	}
@@ -55,7 +57,7 @@ public class ClientManager implements ClientOperator, ExitObserver{
 	}
 
 	@Override
-	public void loginClient(String clientName, int udpPort, ClientThread thread) {
+	public void loginClient(String clientName, int udpPort, IClientThread thread) {
 		clientName = clientName.replace("\n", "");
 		clientName = clientName.toLowerCase();
 
@@ -74,14 +76,14 @@ public class ClientManager implements ClientOperator, ExitObserver{
 	}
 
 	@Override
-	public void logoffClient(ClientThread thread) {
+	public void logoffClient(IClientThread thread) {
 		thread.setLogout();
 	}
 
 	@Override
 	public void sendNotification(String notification, String receiver) {
 		if( loggedInClients.containsKey(receiver) ){
-			ClientThread thread = loggedInClients.get(receiver);
+			IClientThread thread = loggedInClients.get(receiver);
 
 
 			try {
@@ -105,7 +107,7 @@ public class ClientManager implements ClientOperator, ExitObserver{
 	}
 
 	@Override
-	public String getNotifications(ClientThread thread) {
+	public String getNotifications(IClientThread thread) {
 		String clientName = thread.getClientName();
 		ArrayList<String> notifications = queuedNotifications.get(clientName);
 		String notificationBulg = "";
@@ -120,7 +122,7 @@ public class ClientManager implements ClientOperator, ExitObserver{
 	}
 
 	@Override
-	public void shutDownClient(ClientThread thread) {
+	public void shutDownClient(IClientThread thread) {
 		thread.exit();
 		allClients.remove(thread);
 	}
@@ -128,7 +130,7 @@ public class ClientManager implements ClientOperator, ExitObserver{
 	@Override
 	public void exit() {
 		this.sendToLocalMessenger("Shutting down Client Manager!");
-		for( ClientThread t : allClients){
+		for( IClientThread t : allClients){
 			t.exit();
 		}
 		executorService.shutdown();
@@ -143,9 +145,9 @@ public class ClientManager implements ClientOperator, ExitObserver{
 
 	@Override
 	public void sendGroupBidNotification(GroupBid gb) {
-		ClientThread groupBidder = gb.getGroupBidder();
+		IClientThread groupBidder = gb.getGroupBidder();
 		
-		for( ClientThread ct : loggedInClients.values() ){
+		for( IClientThread ct : loggedInClients.values() ){
 			if( ct != groupBidder ){
 				ct.receiveFeedback(groupBidder.getClientName() + " has started the following group bid and needs two confirmations\n" + gb);
 			}
