@@ -50,7 +50,6 @@ public class AuctionManager implements IAuctionOperator, IAuctionEndReceiver, IE
 
 	private void notifyClientBidUpdate(String notification) {
 		commandReceiver.receiveCommand(notification, null);
-
 	}
 
 	@Override

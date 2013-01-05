@@ -126,7 +126,6 @@ implements IMessageReceiver, IOInstructionSender, IExitSender, IAuctionCommandRe
 		return message.charAt(0) == '!';
 	}
 
-
 	private ICommand parseCommand(String command) throws NotACommandException{
 		splittedString = command.split(" ");
 		ICommand c = commandRepository.checkCommand(splittedString[0]);
@@ -155,7 +154,6 @@ implements IMessageReceiver, IOInstructionSender, IExitSender, IAuctionCommandRe
 			sendToIOUnit(message);
 		}	
 	}
-
 	
 	private void sendSyntaxError( String command, String correctSyntax){
 		String message = "Syntaxerror in Command: " + command + "\n";

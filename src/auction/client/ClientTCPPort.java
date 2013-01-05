@@ -59,9 +59,9 @@ public class ClientTCPPort extends Thread implements IMessageReceiver, IExitObse
 			sendMessageToLocalMessenger("Push ENTER to completely shutdown the Program.");
 			localMessenger.invokeShutdown();
 		}
-		
+
 	}
-	
+
 	private void sendMessageToServer(String message) {
 		out.println(message);
 	}
@@ -78,9 +78,9 @@ public class ClientTCPPort extends Thread implements IMessageReceiver, IExitObse
 	@Override
 	public void exit() {
 		try{		
-		/*	sendMessageToLocalMessenger("Shutting down ClientTCP");*/
+			/*	sendMessageToLocalMessenger("Shutting down ClientTCP");*/
 			serverConnection.close();
-			
+
 		}catch(IOException e){}
 		finally{
 			if(serverConnection != null ){
