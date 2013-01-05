@@ -1,5 +1,7 @@
 package auction.server;
 
+import java.io.IOException;
+import java.security.PrivateKey;
 import java.util.ArrayList;
 import auction.commands.AuctionCommandReceiverClient;
 import auction.commands.AuctionCommandReceiverServer;
@@ -20,6 +22,8 @@ import auction.communication.ExitObserver;
 import auction.communication.ExitSender;
 import auction.communication.MessageReceiver;
 import auction.communication.MessageSender;
+import auction.crypt.Crypt;
+import auction.crypt.RSACrypt;
 import auction.io.IOInstructionReceiver;
 import auction.io.IOInstructionSender;
 import auction.io.IOUnit;
@@ -37,6 +41,9 @@ implements ExitSender, AuctionCommandReceiverClient, AuctionCommandReceiverServe
 
 	private AuctionOperator auctionManager = null; 
 	private ClientOperator clientManager = null;
+	private Crypt crypt = null;
+	private String pathToPublicKey = null;
+	private PrivateKey privateKey = null;
 
 	private Command[] availableCommands = {
 			new BidAuctionCommand(this),
@@ -59,6 +66,14 @@ implements ExitSender, AuctionCommandReceiverClient, AuctionCommandReceiverServe
 		auctionManager = new AuctionManager(this,this);
 		lmc.registerMessageReceiver(this);
 		cc.registerCommandReceiver(this);
+	}
+	
+	public ServerModel(MessageSender lmc,
+			CommandSender cc, ClientOperator clientManager, String pathToPublicKey,PrivateKey privateKey) {
+
+		this(lmc, cc, clientManager);
+		this.privateKey = privateKey;
+		this.pathToPublicKey = pathToPublicKey;
 	}
 
 	@Override
@@ -88,6 +103,10 @@ implements ExitSender, AuctionCommandReceiverClient, AuctionCommandReceiverServe
 
 
 	private void parseMessage(String message) {
+		if(crypt != null)
+		{
+			message = crypt.decodeMessage(message);
+		}
 		if( this.isCommand(message) ){
 			Command c = parseCommand(message);
 			currentCommand = message;
@@ -128,11 +147,12 @@ implements ExitSender, AuctionCommandReceiverClient, AuctionCommandReceiverServe
 			String clientName = splittedString[1];
 			int udpPort = Integer.parseInt(splittedString[2]);
 			clientManager.loginClient(clientName, udpPort, servedClient);
-			//TODO Rückmeldung über TCP
+			//Rückmeldung über TCP
 			servedClient.receiveFeedback("!ok");
+			
 		}catch(NumberFormatException nfe){
 			servedClient.receiveFeedback("Couldn't login: The udpPort must be numeric and digit between 1024 and 65535!");
-		}
+		} 
 	}
 
 	@Override

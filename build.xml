@@ -49,7 +49,7 @@
         <java classname="${server.name}" fork="true" classpathref="project.classpath">
             <assertions refid="project.assertions"/>
             <arg value="${server.port}"/>
-            <arg value="${analytics.bindingName}"/>
+            <arg value="${server.key.pub}"/>
             <arg value="${billing.bindingName}"/>
             <arg value="${server.key}"/>
             <arg value="${clients.key.dir}"/>

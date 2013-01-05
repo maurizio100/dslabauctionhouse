@@ -9,6 +9,7 @@ import java.net.Socket;
 
 import auction.communication.CommandReceiver;
 import auction.communication.MessageReceiver;
+import auction.crypt.Crypt;
 
 public class Client implements Runnable, ClientThread{
 

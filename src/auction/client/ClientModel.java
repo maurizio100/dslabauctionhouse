@@ -27,6 +27,7 @@ import auction.commands.ExitCommand;
 import auction.commands.ListCommand;
 import auction.commands.LoginCommand;
 import auction.commands.LogoutCommand;
+import auction.commands.OkCommand;
 import auction.commands.OverbidCommand;
 import auction.communication.ExitObserver;
 import auction.communication.ExitSender;
@@ -64,7 +65,8 @@ implements MessageReceiver, IOInstructionSender, ExitSender, AuctionCommandRecei
 			new LoginCommand(this),
 			new LogoutCommand(this),
 			new OverbidCommand(this),
-			new AuctionEndedCommand(this)
+			new AuctionEndedCommand(this),
+			new OkCommand(this)
 	};
 	
 	public ClientModel(MessageSender lmc,
@@ -99,7 +101,10 @@ implements MessageReceiver, IOInstructionSender, ExitSender, AuctionCommandRecei
 
 	private void parseMessage(String message) {
 		//Nachricht entschlüsseln
-		crypt.decodeMessage(message);
+		if(crypt != null)
+		{
+			message = crypt.decodeMessage(message);
+		}
 		
 		if( this.isCommand(message) ){
 			try{ 

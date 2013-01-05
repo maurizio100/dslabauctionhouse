@@ -15,13 +15,12 @@ import javax.crypto.spec.SecretKeySpec;
 import org.bouncycastle.util.encoders.Base64;
 
 public class AESCrypt implements Crypt{
-
 	
 	private SecureRandom iv;
 	private Key secretKey;
 	public AESCrypt(String key, String iv)
 	{
-		//TODO initialize <secret-key> and <iv-parameter>
+		//initialize <secret-key> and <iv-parameter>
 		this.secretKey = new SecretKeySpec(key.getBytes(), "AES");
 		this.iv = new SecureRandom(iv.getBytes());
 	}

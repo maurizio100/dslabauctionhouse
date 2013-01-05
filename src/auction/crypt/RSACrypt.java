@@ -18,14 +18,18 @@ import org.bouncycastle.util.encoders.Base64;
 
 public class RSACrypt implements Crypt{
 
-	private final byte[] secureNumber = new byte[32];
+	private byte[] secureNumber = new byte[32];
 	private PublicKey publicKey;
 	private PrivateKey privateKey;
 	
 	public RSACrypt(String pathToPublicKey, PrivateKey privateKey) throws IOException
 	{
+		//client-challenge erstellen und in Base64 umwandeln wegen leerzeichen
 		new SecureRandom().nextBytes(secureNumber);
-		//TODO Private Key vom Clien und Public Key vom Server müssen noch initialisert werden
+		secureNumber = Base64.encode(secureNumber);
+		
+		
+		//Private Key vom Client und Public Key vom Server müssen noch initialisert werden
 		PEMReader in = new PEMReader(new FileReader(pathToPublicKey)); 
 		this.publicKey = (PublicKey) in.readObject();
 		this.privateKey = privateKey;
@@ -70,7 +74,7 @@ public class RSACrypt implements Crypt{
 	@Override
 	public String decodeMessage(String message) {
 		
-		//Nachricht wird verschlüsselt und danach in Base64 umgewandelt
+		//Nachricht wird entschlüsselt und danach in Base64 umgewandelt
 		try {
 			byte[] cryptmessage = message.getBytes(); 
 			
@@ -104,6 +108,7 @@ public class RSACrypt implements Crypt{
 	@Override
 	public boolean check(byte[] s)
 	{
+		s = Base64.decode(s);
 		if(secureNumber.equals(s))
 		{
 			return true;
