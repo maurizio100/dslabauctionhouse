@@ -8,5 +8,7 @@ public interface AuctionCommandReceiverClient {
 	public void exit();
 	public void ok();
 
-	
+	public void confirmGroupBid();
+	public void rejectGroupBid();
+	public void notifyConfirmed();
 }
