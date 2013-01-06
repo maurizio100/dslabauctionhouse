@@ -458,7 +458,6 @@ implements ExitSender, AuctionCommandReceiverServer, ClientCommandReceiver, Comm
 	private void sendFeedback(Client c, String message ){
 				
 		clientManager.sendFeedback(c, message);
-		
 	}
 	
 	@Override

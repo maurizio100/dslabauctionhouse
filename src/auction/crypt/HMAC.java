@@ -30,7 +30,6 @@ public class HMAC {
 
 		Mac hMac = Mac.getInstance("HmacSHA256"); 
 		hMac.init(key);
-		// MESSAGE is the message to sign in bytes 
 		hMac.update(message.getBytes());
 		byte[] hash = hMac.doFinal();
 		return hash.toString();
@@ -41,7 +40,6 @@ public class HMAC {
 
 		Mac hMac = Mac.getInstance("HmacSHA256"); 
 		hMac.init(key);
-		// MESSAGE is the message to sign in bytes 
 		hMac.update(decodedmessage.getBytes());
 		byte[] hash = hMac.doFinal();
 		
