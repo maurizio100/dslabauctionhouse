@@ -17,7 +17,7 @@ public class HMAC {
 	public HMAC(String pathToSecretKey, String username) throws IOException
 	{
 		
-		FileInputStream fis = new FileInputStream(pathToSecretKey);
+		FileInputStream fis = new FileInputStream(pathToSecretKey+username+".key");
 		fis.read(keyBytes);
 		fis.close();
 		byte[] input = Hex.decode(keyBytes);
@@ -32,7 +32,7 @@ public class HMAC {
 		hMac.init(key);
 		hMac.update(message.getBytes());
 		byte[] hash = hMac.doFinal();
-		return hash.toString();
+		return new String(hash);
 	}
 	
 	public boolean checkHMAC(String decodedmessage, String hashmac) throws NoSuchAlgorithmException, InvalidKeyException
@@ -42,8 +42,9 @@ public class HMAC {
 		hMac.init(key);
 		hMac.update(decodedmessage.getBytes());
 		byte[] hash = hMac.doFinal();
+		String hashnew = new String(hash);
 		
-		if(hash.equals(hashmac))
+		if(hashnew.equals(hashmac))
 		{
 			return true;
 		}

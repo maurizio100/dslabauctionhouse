@@ -35,7 +35,7 @@ public class Auction extends TimerTask{
 		endDate.add(Calendar.SECOND, duration);
 		Date d = endDate.getTime();
 
-		owner.receiveFeedback("An auction \'" +description+ "\' with id " + id + " has been created and will end on " +
+		manager.receiveFeedback("An auction \'" +description+ "\' with id " + id + " has been created and will end on " +
 				df.format(d));
 	}
 	

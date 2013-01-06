@@ -50,7 +50,7 @@ public class AuctionClient {
 			
 			/*-----------Network components-----------------------------*/
 			ClientTCPPort socketPort = new ClientTCPPort( host, tcpPort, nmfc, lmc, model );
-			ClientUDPPort updPort = new ClientUDPPort( lmc, udpPort, model);
+//			ClientUDPPort updPort = new ClientUDPPort( lmc, udpPort, model);
 			
 		}catch(NumberFormatException nfe){
 			System.err.println("ClientMain: " +

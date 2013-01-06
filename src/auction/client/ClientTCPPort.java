@@ -55,9 +55,10 @@ public class ClientTCPPort extends Thread implements IMessageReceiver, IExitObse
 		}catch( IOException e ){
 			sendMessageToLocalMessenger("Shutting down ClientTCP - Socket inputstream closed.");
 		}catch( ServerDisconnectedException sde){
+//			sendMessageToLocalMessenger("Push ENTER to completely shutdown the Program.");
+//			localMessenger.invokeShutdown();
+			localMessenger.switchToOfflineMode();
 			sendMessageToLocalMessenger("The Server is not online anymore. Client is going to shutdown now.");
-			sendMessageToLocalMessenger("Push ENTER to completely shutdown the Program.");
-			localMessenger.invokeShutdown();
 		}
 
 	}
@@ -93,5 +94,11 @@ public class ClientTCPPort extends Thread implements IMessageReceiver, IExitObse
 	@Override
 	public void invokeShutdown() {
 		this.exit();
+	}
+
+	@Override
+	public void switchToOfflineMode() {
+		// TODO Auto-generated method stub
+		
 	}
 }

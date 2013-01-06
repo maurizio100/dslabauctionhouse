@@ -23,4 +23,10 @@ public class LocalMessageController implements IMessageReceiver, IMessageSender{
 		clientModel.invokeShutdown();
 	}
 
+	@Override
+	public void switchToOfflineMode() {
+		clientModel.switchToOfflineMode();
+		
+	}
+
 }

@@ -1,25 +1,35 @@
 package auction.server;
 
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.TimerTask;
 
-public class GroupBid {
+public class GroupBid extends TimerTask{
 
 	private int auctionNumber;
 	private double bid;
 	private Client groupBidder;
 	private ArrayList<Client> confirmClients;
-	
-	public GroupBid(int auctionNumber, double bid, Client servedClient) {
+	private ServerModel serverModel;
+	private long startTime = 0;
+
+	public GroupBid(int auctionNumber, double bid, Client servedClient, ServerModel serverModel) {
 		this.auctionNumber = auctionNumber;
 		this.bid = bid;
 		this.groupBidder = servedClient;	
+		confirmClients = new ArrayList<Client>();
+		this.serverModel = serverModel;
 	}
 
 	public int addConfirmClient( Client confClient ){
+		if( confirmClients.isEmpty() ){
+			startTime = new Date().getTime();
+		}
 		confirmClients.add(confClient);
+	
 		return confirmClients.size();
 	}
-	
+
 	public Client getGroupBidder() {
 		return groupBidder;
 	}
@@ -28,10 +38,20 @@ public class GroupBid {
 		String retString = "";
 		retString += "Auction: " + auctionNumber + "\n";
 		retString += "Bid: " + bid;
-		
+
 		return retString;
 	}
-	
+
+	public void run(){
+		if(!confirmClients.isEmpty() && confirmClients.size() < ServerConfig.CONFIRMLIMIT)
+		{
+			if( (new Date().getTime() - startTime)/1000 >= 5 ){
+				serverModel.sendTimoutReject(this);
+				confirmClients.removeAll(confirmClients);
+			}
+		}
+	}
+
 	public ArrayList<Client> getConfirmClients(){
 		return confirmClients;
 	}
@@ -43,10 +63,10 @@ public class GroupBid {
 	public int getAuctionNumber() {
 		return auctionNumber;
 	}
-	
+
 	public double getBid(){
 		return bid;
 	}
-	
-	
+
+
 }

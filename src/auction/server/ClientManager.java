@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -130,33 +131,26 @@ public class ClientManager implements IClientOperator, IExitObserver{
 	@Override
 	public void exit() {
 		this.sendToLocalMessenger("Shutting down Client Manager!");
-		for( IClientThread t : allClients){
-			t.exit();
-		}
+//		for( IClientThread t : allClients){
+//			t.exit();
+//		}
 		executorService.shutdown();
-	}
-
-	@Override
-	public void performConfirmNotification(ArrayList<Client> confirmers) {
-		for( Client c : confirmers ){
-			c.sendFeedback("!confirm");
-		}
 	}
 
 	@Override
 	public void sendGroupBidNotification(GroupBid gb) {
 		IClientThread groupBidder = gb.getGroupBidder();
 		
-		for( IClientThread ct : loggedInClients.values() ){
-			if( ct != groupBidder ){
-				ct.receiveFeedback(groupBidder.getClientName() + " has started the following group bid and needs two confirmations\n" + gb);
-			}
-		}
 		
 	}
 
 	@Override
-	public void sendFeedback(Client c, String feedback) {
-		c.sendFeedback(feedback);
+	public void sendFeedback(IClientThread c, String feedback) {
+		c.receiveFeedback(feedback);
+	}
+
+	@Override
+	public Collection<IClientThread> getLoggedInClients() {
+		return loggedInClients.values();
 	}
 }

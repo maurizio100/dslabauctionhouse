@@ -24,4 +24,10 @@ public class NetworkMessageForwardingController implements IMessageSender, IMess
 		socketPort.invokeShutdown();
 	}
 
+	@Override
+	public void switchToOfflineMode() {
+		socketPort.switchToOfflineMode();
+		
+	}
+
 }

@@ -10,41 +10,49 @@ import auction.interfaces.IClientThread;
 import auction.interfaces.ICommandReceiver;
 import auction.interfaces.IExitObserver;
 import auction.interfaces.IExitSender;
+import auction.interfaces.IFeedbackObserver;
 
-public class AuctionManager implements IAuctionOperator, IAuctionEndReceiver, IExitObserver{
+public class AuctionManager implements IAuctionOperator, IAuctionEndReceiver,
+		IExitObserver {
 
 	private HashMap<Integer, Auction> activeAuctions = null;
 	private ICommandReceiver commandReceiver = null;
 	private Timer timer;
 	private int auctionId = 0;
+	private IFeedbackObserver ifo = null;
 
-	public AuctionManager(ICommandReceiver cr, IExitSender es){
-		activeAuctions = new HashMap<Integer,Auction>();
+	public AuctionManager(ICommandReceiver cr, IExitSender es,
+			IFeedbackObserver ifo) {
+		activeAuctions = new HashMap<Integer, Auction>();
 		commandReceiver = cr;
 		es.registerExitObserver(this);
+		this.ifo = ifo;
 		timer = new Timer();
 	}
 
 	@Override
-	public void bidForAuction(int auctionNumber, IClientThread bidder, double price) throws ProductNotAvailableException{
-		if( !activeAuctions.containsKey(auctionNumber) ){
+	public void bidForAuction(int auctionNumber, IClientThread bidder,
+			double price) throws ProductNotAvailableException {
+		if (!activeAuctions.containsKey(auctionNumber)) {
 			throw new ProductNotAvailableException();
 		}
 
-		Auction	a = activeAuctions.get(auctionNumber);
+		Auction a = activeAuctions.get(auctionNumber);
 		String lastBidder = null;
 		String notification = null;
 		boolean overbid = false;
 
-		synchronized( a ){
+		synchronized (a) {
 			lastBidder = a.getLastBidder();
 			notification = "!new-bid " + a.getDescription() + " " + lastBidder;
 			overbid = a.setNewPrice(bidder.getClientName(), price);
 		}
 
-		if(overbid){	
-			bidder.receiveFeedback("You have successfully bid with " + price + " on " + a);
-			if( lastBidder != null ) this.notifyClientBidUpdate(notification);
+		if (overbid) {
+			ifo.receiveFeedback("You have successfully bid with " + price
+					+ " on " + a);
+			if (lastBidder != null)
+				this.notifyClientBidUpdate(notification);
 		}
 	}
 
@@ -58,19 +66,20 @@ public class AuctionManager implements IAuctionOperator, IAuctionEndReceiver, IE
 		String winner = a.getLastBidder();
 		String owner = a.getOwner();
 
-		String notification = "!auction-ended " + winner + " " + a.getHighestValue() + " " + a.getDescription() + " " + owner;
+		String notification = "!auction-ended " + winner + " "
+				+ a.getHighestValue() + " " + a.getDescription() + " " + owner;
 		commandReceiver.receiveCommand(notification, null);
-		notification = "!auction-ended " + winner + " " + a.getHighestValue() + " " + a.getDescription() + " " + winner;
+		notification = "!auction-ended " + winner + " " + a.getHighestValue()
+				+ " " + a.getDescription() + " " + winner;
 		commandReceiver.receiveCommand(notification, null);
-
 
 		this.removeAuction(a.getID());
 
 	}
 
-	private void removeAuction(int id){
+	private void removeAuction(int id) {
 
-		synchronized(activeAuctions){
+		synchronized (activeAuctions) {
 			activeAuctions.remove(id);
 		}
 
@@ -81,10 +90,10 @@ public class AuctionManager implements IAuctionOperator, IAuctionEndReceiver, IE
 
 		description.replace("\n", "");
 		auctionId++;
-		Auction auc = new Auction( this, owner, description, time, auctionId );		
+		Auction auc = new Auction(this, owner, description, time, auctionId);
 
-		activeAuctions.put( auctionId, auc );
-
+		activeAuctions.put(auctionId, auc);
+		
 		timer.schedule(auc, 0, 500);
 
 		return auctionId;
@@ -92,24 +101,24 @@ public class AuctionManager implements IAuctionOperator, IAuctionEndReceiver, IE
 	}
 
 	@Override
-	public void listAuction(IClientThread thread) {
+	public String listAuction(IClientThread thread) {
 		String auctionList = "there are no active auctions";
-		if(!activeAuctions.isEmpty()){
+		if (!activeAuctions.isEmpty()) {
 
 			auctionList = "";
 			Auction a = null;
-			for( int key : activeAuctions.keySet()){
+			for (int key : activeAuctions.keySet()) {
 				a = activeAuctions.get(key);
 
-				synchronized( a ){
-					auctionList += key + ". " + a + "\n";	
+				synchronized (a) {
+					auctionList += key + ". " + a + "\n";
 				}
 
 			}
 
 		}
 
-		thread.receiveFeedback(auctionList);		
+		return auctionList;
 	}
 
 	@Override
@@ -127,4 +136,8 @@ public class AuctionManager implements IAuctionOperator, IAuctionEndReceiver, IE
 		return activeAuctions.containsKey(auctionId);
 	}
 
+	public void receiveFeedback(String message)
+	{
+		ifo.receiveFeedback(message);
+	}
 }

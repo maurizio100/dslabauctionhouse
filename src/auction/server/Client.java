@@ -41,8 +41,9 @@ public class Client implements Runnable, IClientThread{
 		clientName = client;
 	}
 
-	public void sendFeedback(String feedback){
+	public void receiveFeedback(String feedback){
 		output.println(feedback);
+		output.flush();
 	}
 
 	@Override
@@ -66,12 +67,6 @@ public class Client implements Runnable, IClientThread{
 
 	private void sendToLocalMessenger( String message ){
 		localMessenger.receiveMessage(message);
-	}
-
-	@Override
-	public void receiveFeedback(String feedback) {
-		output.println(feedback);
-		output.flush();
 	}
 
 	@Override

@@ -32,7 +32,6 @@ public class AESCrypt implements ICrypt{
 	
 	@Override
 	public String encodeMessage(String message) {
-		
 		byte[] cryptmessage = null; 
 		Cipher c;
 		try {
@@ -67,13 +66,15 @@ public class AESCrypt implements ICrypt{
 
 	@Override
 	public String decodeMessage(String message) {
+		
+		
 		byte[] cryptmessage = null; 
 		Cipher c;
 		try {
+			cryptmessage = Base64.decode(message);
 			c = Cipher.getInstance("AES");
 			c.init(Cipher.DECRYPT_MODE, secretKey, new IvParameterSpec(iv));
-			cryptmessage = c.doFinal(message.getBytes());
-			cryptmessage = Base64.encode(cryptmessage);
+			cryptmessage = c.doFinal(cryptmessage);
 			return new String(cryptmessage);
 			
 		} catch (NoSuchAlgorithmException e) {

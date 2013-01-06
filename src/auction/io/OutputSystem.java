@@ -10,13 +10,13 @@ public class OutputSystem {
 	public OutputSystem(String welcomeMessage){
 		out = new PrintWriter(System.out);
 		out.println(welcomeMessage);
-		out.print(prompt());
+//		out.print(prompt());
 		out.flush();
 	}
 	
 	public void receiveInstruction(String instruction) {
 		out.println(instruction);
-		out.print(prompt());
+//		out.print(prompt());
 		out.flush();
 	}
 
