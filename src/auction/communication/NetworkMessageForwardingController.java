@@ -1,9 +1,12 @@
 package auction.communication;
 
+import auction.interfaces.IMessageReceiver;
+import auction.interfaces.IMessageSender;
 
-public class NetworkMessageForwardingController implements MessageSender, MessageReceiver{
 
-	private MessageReceiver socketPort = null;
+public class NetworkMessageForwardingController implements IMessageSender, IMessageReceiver{
+
+	private IMessageReceiver socketPort = null;
 	
 
 	@Override
@@ -12,7 +15,7 @@ public class NetworkMessageForwardingController implements MessageSender, Messag
 	}
 
 	@Override
-	public void registerMessageReceiver(MessageReceiver receiver) {
+	public void registerMessageReceiver(IMessageReceiver receiver) {
 		socketPort = receiver;
 	}
 

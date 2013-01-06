@@ -1,8 +1,9 @@
-package auction.server;
+package auction.interfaces;
 
 import java.net.InetAddress;
 
-public interface ClientThread extends FeedbackObserver{
+
+public interface IClientThread extends IFeedbackObserver{
 
 	public void exit();
 	public String getClientName();

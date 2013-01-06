@@ -7,11 +7,14 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.TimerTask;
 
+import auction.interfaces.IAuctionEndReceiver;
+import auction.interfaces.IClientThread;
+
 public class Auction extends TimerTask{
 
 	public static final String DATE_FORMAT_NOW = "dd.MM.yyyy HH:mm";
 
-	private AuctionEndReceiver notificationReceiver = null;
+	private IAuctionEndReceiver notificationReceiver = null;
 	private String owner = null;
 	private String highestBidder = "none";
 	private String description = null;
@@ -22,7 +25,7 @@ public class Auction extends TimerTask{
 	private DateFormat df = new SimpleDateFormat(DATE_FORMAT_NOW);
 	private int id;
 	
-	public Auction(AuctionManager manager, ClientThread owner, String description, int duration, int id){
+	public Auction(AuctionManager manager, IClientThread owner, String description, int duration, int id){
 		notificationReceiver = manager;
 		this.description = description; 
 		this.id = id;

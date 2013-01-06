@@ -26,16 +26,21 @@ public class AuctionServer {
 				"Usage -> java AuctionServer host tcpPort"
 				);
 	}
-	
-	
+
+
 	public static void main(String[] args){
-		
+
 		int tcpPort = -1;
-		
-		if( args.length != 1){ usage(); }
-		
+		String pathToPublicKey = null;
+		String pathToDir = null;
+
+		if( args.length != 5){ usage(); }
+
 		try {
-			//Passwortabfrage für Private Keys des Servers
+			pathToPublicKey = args[1];
+			pathToDir = args[4];
+			
+			/* --- password request for server's private key --- */
 			PEMReader in;
 			String pathToPrivateKey = args[3];
 			PrivateKey privateKey = null;
@@ -43,21 +48,21 @@ public class AuctionServer {
 				in = new PEMReader(new FileReader(pathToPrivateKey), new PasswordFinder() {
 					@Override
 					public char[] getPassword() {
-					// reads the password from standard input for decrypting the private key
-					System.out.println("Enter pass phrase:");
-					try {
-						return (new BufferedReader(new InputStreamReader(System.in)).readLine()).toCharArray();
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
+						// reads the password from standard input for decrypting the private key
+						System.out.println("Enter pass phrase:");
+						try {
+							return (new BufferedReader(new InputStreamReader(System.in)).readLine()).toCharArray();
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+						return null; 
 					}
-					return null; 
-					}
-					});
+				});
 				System.out.println(pathToPrivateKey);
 				KeyPair keyPair = (KeyPair) in.readObject(); 
 				privateKey = keyPair.getPrivate();
-				
+
 			} catch (FileNotFoundException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -66,26 +71,26 @@ public class AuctionServer {
 				e.printStackTrace();
 			}
 			//Passwortabfrage ende
-			
+
 			tcpPort = Integer.parseInt(args[0]);
 			if( tcpPort < 1023 || tcpPort > 65536 ) 
 				throw new PortRangeException("Port is out of Range! Valid ports are between 1024 and 65536.");
-			
+
 			LocalMessageController lmc = new LocalMessageController();
 			CommandController cc = new CommandController();
 
 			ClientManager clientManager = new ClientManager(cc, lmc);
-//			ServerModel model = new ServerModel(lmc, cc, clientManager);
-			ServerModel model = new ServerModel(lmc, cc, clientManager, args[1], privateKey, args[4]);
+			//ServerModel model = new ServerModel(lmc, cc, clientManager);
+			ServerModel model = new ServerModel(lmc, cc, clientManager, pathToPublicKey, privateKey, pathToDir);
 			model.registerExitObserver(clientManager);
-			
+
 			ServerTCPPort serverTCPPort = new ServerTCPPort(tcpPort, clientManager, lmc, model);
 			IOUnit ioUnit = new IOUnit(lmc, model, model, WELCOME);
-			
-			} catch (PortRangeException e) {
-				e.getMessage();
-			}catch( NumberFormatException e ){
-				System.err.println("Port must be numeric!");
-			}
+
+		} catch (PortRangeException e) {
+			e.getMessage();
+		}catch( NumberFormatException e ){
+			System.err.println("Port must be numeric!");
+		}
 	}
 }

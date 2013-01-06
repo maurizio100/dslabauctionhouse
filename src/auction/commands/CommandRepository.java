@@ -2,35 +2,37 @@ package auction.commands;
 
 import java.util.HashMap;
 
+import auction.interfaces.ICommand;
+
 public class CommandRepository {
 
-	private HashMap<String, Command> repository = null;
+	private HashMap<String, ICommand> repository = null;
 	
 	private CommandRepository(){
-		repository = new HashMap<String, Command>();
+		repository = new HashMap<String, ICommand>();
 	}
 	
-	public CommandRepository(Command command){
+	public CommandRepository(ICommand command){
 		this();
 		createRepository(command);
 	}
 	
-	public CommandRepository( Command[] commandList ){
+	public CommandRepository( ICommand[] commandList ){
 		this();
 		createRepository(commandList);
 	}
 	
-	private void createRepository(Command command){
+	private void createRepository(ICommand command){
 		repository.put(command.getName(), command);
 	}
 	
-	private void createRepository(Command[] command){
-		for( Command c : command ){
+	private void createRepository(ICommand[] command){
+		for( ICommand c : command ){
 			createRepository(c);
 		}
 	}
 	
-	public Command checkCommand(String command){
+	public ICommand checkCommand(String command){
 		String[] splittedString = command.split("!");
 		return repository.get(splittedString[1]);
 	}

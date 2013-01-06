@@ -1,8 +1,8 @@
-package auction.communication;
+package auction.interfaces;
 
 import auction.server.Client;
 
-public interface CommandReceiver {
+public interface ICommandReceiver {
 
 	public void receiveCommand(String command, Client source);
 	

@@ -1,10 +1,13 @@
 package auction.commands;
 
-public class LogoutCommand implements Command {
+import auction.interfaces.IClientCommandReceiver;
+import auction.interfaces.ICommand;
 
-	private ClientCommandReceiver recepient;
+public class LogoutCommand implements ICommand {
+
+	private IClientCommandReceiver recepient;
 	
-	public LogoutCommand(ClientCommandReceiver recepient) {
+	public LogoutCommand(IClientCommandReceiver recepient) {
 		this.recepient = recepient;
 	}
 

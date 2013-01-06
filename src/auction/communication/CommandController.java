@@ -2,20 +2,22 @@ package auction.communication;
 
 import java.util.ArrayList;
 
+import auction.interfaces.ICommandReceiver;
+import auction.interfaces.ICommandSender;
 import auction.server.Client;
 
-public class CommandController implements CommandReceiver, CommandSender{
+public class CommandController implements ICommandReceiver, ICommandSender{
 
-	private ArrayList<CommandReceiver> commandReceiver = new ArrayList<CommandReceiver>();
+	private ArrayList<ICommandReceiver> commandReceiver = new ArrayList<ICommandReceiver>();
 	
 	@Override
-	public void registerCommandReceiver(CommandReceiver receiver) {
+	public void registerCommandReceiver(ICommandReceiver receiver) {
 		commandReceiver.add(receiver);
 	}
 
 	@Override
 	public void receiveCommand(String command, Client source) {
-		for( CommandReceiver cr : commandReceiver ){
+		for( ICommandReceiver cr : commandReceiver ){
 			cr.receiveCommand(command, source);
 		}
 		

@@ -6,23 +6,23 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import auction.communication.ExitObserver;
-import auction.communication.ExitSender;
-import auction.communication.MessageReceiver;
-import auction.communication.MessageSender;
 import auction.exceptions.ServerDisconnectedException;
+import auction.interfaces.IExitObserver;
+import auction.interfaces.IExitSender;
+import auction.interfaces.IMessageReceiver;
+import auction.interfaces.IMessageSender;
 
-public class ClientTCPPort extends Thread implements MessageReceiver, ExitObserver{
+public class ClientTCPPort extends Thread implements IMessageReceiver, IExitObserver{
 
-	private MessageSender nwMessageSender = null;
-	private MessageReceiver localMessenger = null;
+	private IMessageSender nwMessageSender = null;
+	private IMessageReceiver localMessenger = null;
 	private Socket serverConnection = null;
 	private PrintWriter out = null;
 	private BufferedReader in = null;
 	private String host;
 	private int port;
 
-	public ClientTCPPort(String host, int port, MessageSender snd, MessageReceiver rcv, ExitSender e) 
+	public ClientTCPPort(String host, int port, IMessageSender snd, IMessageReceiver rcv, IExitSender e) 
 			throws UnknownHostException, IOException{
 
 		nwMessageSender = snd;
@@ -59,9 +59,9 @@ public class ClientTCPPort extends Thread implements MessageReceiver, ExitObserv
 			sendMessageToLocalMessenger("Push ENTER to completely shutdown the Program.");
 			localMessenger.invokeShutdown();
 		}
-		
+
 	}
-	
+
 	private void sendMessageToServer(String message) {
 		out.println(message);
 	}
@@ -78,9 +78,9 @@ public class ClientTCPPort extends Thread implements MessageReceiver, ExitObserv
 	@Override
 	public void exit() {
 		try{		
-		/*	sendMessageToLocalMessenger("Shutting down ClientTCP");*/
+			/*	sendMessageToLocalMessenger("Shutting down ClientTCP");*/
 			serverConnection.close();
-			
+
 		}catch(IOException e){}
 		finally{
 			if(serverConnection != null ){

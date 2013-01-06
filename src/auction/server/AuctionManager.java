@@ -3,19 +3,22 @@ package auction.server;
 import java.util.HashMap;
 import java.util.Timer;
 
-import auction.communication.CommandReceiver;
-import auction.communication.ExitObserver;
-import auction.communication.ExitSender;
 import auction.exceptions.ProductNotAvailableException;
+import auction.interfaces.IAuctionEndReceiver;
+import auction.interfaces.IAuctionOperator;
+import auction.interfaces.IClientThread;
+import auction.interfaces.ICommandReceiver;
+import auction.interfaces.IExitObserver;
+import auction.interfaces.IExitSender;
 
-public class AuctionManager implements AuctionOperator, AuctionEndReceiver, ExitObserver{
+public class AuctionManager implements IAuctionOperator, IAuctionEndReceiver, IExitObserver{
 
 	private HashMap<Integer, Auction> activeAuctions = null;
-	private CommandReceiver commandReceiver = null;
+	private ICommandReceiver commandReceiver = null;
 	private Timer timer;
 	private int auctionId = 0;
 
-	public AuctionManager(CommandReceiver cr, ExitSender es){
+	public AuctionManager(ICommandReceiver cr, IExitSender es){
 		activeAuctions = new HashMap<Integer,Auction>();
 		commandReceiver = cr;
 		es.registerExitObserver(this);
@@ -23,7 +26,7 @@ public class AuctionManager implements AuctionOperator, AuctionEndReceiver, Exit
 	}
 
 	@Override
-	public void bidForAuction(int auctionNumber, ClientThread bidder, double price) throws ProductNotAvailableException{
+	public void bidForAuction(int auctionNumber, IClientThread bidder, double price) throws ProductNotAvailableException{
 		if( !activeAuctions.containsKey(auctionNumber) ){
 			throw new ProductNotAvailableException();
 		}
@@ -47,7 +50,6 @@ public class AuctionManager implements AuctionOperator, AuctionEndReceiver, Exit
 
 	private void notifyClientBidUpdate(String notification) {
 		commandReceiver.receiveCommand(notification, null);
-
 	}
 
 	@Override
@@ -75,7 +77,7 @@ public class AuctionManager implements AuctionOperator, AuctionEndReceiver, Exit
 	}
 
 	@Override
-	public int addAuction(String description, ClientThread owner, int time) {
+	public int addAuction(String description, IClientThread owner, int time) {
 
 		description.replace("\n", "");
 		auctionId++;
@@ -90,7 +92,7 @@ public class AuctionManager implements AuctionOperator, AuctionEndReceiver, Exit
 	}
 
 	@Override
-	public void listAuction(ClientThread thread) {
+	public void listAuction(IClientThread thread) {
 		String auctionList = "there are no active auctions";
 		if(!activeAuctions.isEmpty()){
 

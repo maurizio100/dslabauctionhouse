@@ -1,6 +1,6 @@
-package auction.commands;
+package auction.interfaces;
 
-public interface AuctionCommandReceiverClient {
+public interface IAuctionCommandReceiverClient {
 
 	public void createAuction();
 	public void bidForAuction();

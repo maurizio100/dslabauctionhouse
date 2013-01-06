@@ -1,6 +1,6 @@
-package auction.crypt;
+package auction.interfaces;
 
-public interface Crypt {
+public interface ICrypt {
 
 	public String encodeMessage(String message);
 	public String decodeMessage(String message);

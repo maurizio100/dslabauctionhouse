@@ -1,18 +1,20 @@
 package auction.io;
 
-import auction.communication.ExitObserver;
-import auction.communication.ExitSender;
-import auction.communication.MessageReceiver;
+import auction.interfaces.IExitObserver;
+import auction.interfaces.IExitSender;
+import auction.interfaces.IOInstructionReceiver;
+import auction.interfaces.IOInstructionSender;
+import auction.interfaces.IMessageReceiver;
 
-public class IOUnit implements IOInstructionReceiver, MessageReceiver, ExitObserver{
+public class IOUnit implements IOInstructionReceiver, IMessageReceiver, IExitObserver{
 
-	private MessageReceiver localMessenger = null;
+	private IMessageReceiver localMessenger = null;
 	private IOInstructionSender clientModel = null; 
 	private OutputSystem output = null;
 	private InputSystem input = null;
 	
 	
-	public IOUnit(MessageReceiver rcv, IOInstructionSender model, ExitSender s, String welcomeMessage) {
+	public IOUnit(IMessageReceiver rcv, IOInstructionSender model, IExitSender s, String welcomeMessage) {
 		localMessenger = rcv;
 		clientModel = model;
 		clientModel.registerIOReceiver(this);

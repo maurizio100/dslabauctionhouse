@@ -1,10 +1,13 @@
 package auction.commands;
 
-public class RejectGroupBidCommand implements Command {
+import auction.interfaces.IAuctionCommandReceiverClient;
+import auction.interfaces.ICommand;
 
-	private AuctionCommandReceiverClient receiver = null;
+public class RejectGroupBidCommand implements ICommand {
+
+	private IAuctionCommandReceiverClient receiver = null;
 	
-	public RejectGroupBidCommand(AuctionCommandReceiverClient receiver) {
+	public RejectGroupBidCommand(IAuctionCommandReceiverClient receiver) {
 		this.receiver = receiver;
 	}
 

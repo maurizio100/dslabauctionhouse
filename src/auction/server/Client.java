@@ -7,18 +7,19 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.Socket;
 
-import auction.communication.CommandReceiver;
-import auction.communication.MessageReceiver;
-import auction.crypt.Crypt;
+import auction.interfaces.IClientThread;
+import auction.interfaces.ICommandReceiver;
+import auction.interfaces.ICrypt;
+import auction.interfaces.IMessageReceiver;
 
-public class Client implements Runnable, ClientThread{
+public class Client implements Runnable, IClientThread{
 
 	private Socket activeSocket = null;
 	private BufferedReader input = null;
 	private PrintWriter output = null;
 
-	private CommandReceiver commandController = null;
-	private MessageReceiver localMessenger = null;
+	private ICommandReceiver commandController = null;
+	private IMessageReceiver localMessenger = null;
 
 	private String clientName = null;
 	private InetAddress host = null;
@@ -26,7 +27,7 @@ public class Client implements Runnable, ClientThread{
 
 	private boolean loggedIn = false;
 
-	public Client(Socket socket, CommandReceiver controller, MessageReceiver rcv) throws IOException{
+	public Client(Socket socket, ICommandReceiver controller, IMessageReceiver rcv) throws IOException{
 		activeSocket = socket;
 		commandController = controller;
 		host = socket.getInetAddress();

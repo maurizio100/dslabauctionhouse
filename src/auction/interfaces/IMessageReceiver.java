@@ -1,6 +1,6 @@
-package auction.communication;
+package auction.interfaces;
 
-public interface MessageReceiver {
+public interface IMessageReceiver {
 
 	public void receiveMessage( String message );
 	public void invokeShutdown();

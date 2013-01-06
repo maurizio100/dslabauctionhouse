@@ -1,10 +1,13 @@
 package auction.commands;
 
-public class ListCommand implements Command {
+import auction.interfaces.IAuctionCommandReceiverClient;
+import auction.interfaces.ICommand;
 
-	private AuctionCommandReceiverClient receiver;
+public class ListCommand implements ICommand {
+
+	private IAuctionCommandReceiverClient receiver;
 	
-	public ListCommand(AuctionCommandReceiverClient receiver) {
+	public ListCommand(IAuctionCommandReceiverClient receiver) {
 		this.receiver = receiver;
 	}
 

@@ -11,12 +11,8 @@ import javax.crypto.SecretKey;
 
 import org.bouncycastle.util.encoders.Base64;
 
-import auction.commands.AuctionCommandReceiverClient;
-import auction.commands.AuctionCommandReceiverServer;
 import auction.commands.AuctionEndedCommand;
 import auction.commands.BidAuctionCommand;
-import auction.commands.ClientCommandReceiver;
-import auction.commands.Command;
 import auction.commands.CommandRepository;
 import auction.commands.ConfirmGroupBidCommand;
 import auction.commands.CreateAuctionCommand;
@@ -26,46 +22,58 @@ import auction.commands.ListCommand;
 import auction.commands.LoginCommand;
 import auction.commands.LogoutCommand;
 import auction.commands.OverbidCommand;
-import auction.communication.CommandReceiver;
-import auction.communication.CommandSender;
-import auction.communication.ExitObserver;
-import auction.communication.ExitSender;
-import auction.communication.MessageReceiver;
-import auction.communication.MessageSender;
 import auction.crypt.AESCrypt;
-import auction.crypt.Crypt;
 import auction.crypt.RSACrypt;
 import auction.exceptions.BidTooLowException;
 import auction.exceptions.BidderNotAvailableException;
 import auction.exceptions.ProductNotAvailableException;
-import auction.io.IOInstructionReceiver;
-import auction.io.IOInstructionSender;
+import auction.interfaces.IAuctionCommandReceiverClient;
+import auction.interfaces.IAuctionCommandReceiverServer;
+import auction.interfaces.IAuctionOperator;
+import auction.interfaces.IClientCommandReceiver;
+import auction.interfaces.IClientOperator;
+import auction.interfaces.ICommand;
+import auction.interfaces.ICommandReceiver;
+import auction.interfaces.ICommandSender;
+import auction.interfaces.ICrypt;
+import auction.interfaces.IExitObserver;
+import auction.interfaces.IExitSender;
+import auction.interfaces.IOInstructionReceiver;
+import auction.interfaces.IOInstructionSender;
+import auction.interfaces.IMessageReceiver;
+import auction.interfaces.IMessageSender;
 import auction.io.IOUnit;
 
-
 public class ServerModel 
-implements ExitSender, AuctionCommandReceiverServer, ClientCommandReceiver, CommandReceiver,MessageReceiver, IOInstructionSender{
+implements IExitSender, IAuctionCommandReceiverServer, IClientCommandReceiver, ICommandReceiver,IMessageReceiver, IOInstructionSender{
 
-	private ArrayList<ExitObserver> eObservers = null;
-	private HashMap<Integer, HashMap<String, GroupBid>> groupBids = null;
-	private GroupBidQueue queuedGroupBids = null; 
-	
-	private CommandRepository commandRepository = null;
-	private String currentCommand = "";
-	private Client servedClient = null;
-	private String[] splittedString;
+	private ArrayList<IExitObserver> eObservers = null;
 	private IOInstructionReceiver ioReceiver = null;
 
-	private AuctionOperator auctionManager = null; 
-	private ClientOperator clientManager = null;
-	private HashMap<String, Crypt> cryptuser = null;
-	private Crypt crypt = null;
+	/* --- Auction and Client Manager --------------- */
+	private IAuctionOperator auctionManager = null; 
+	private IClientOperator clientManager = null;
+
+	/* ---- Cryptography variables ------------------ */
+	private HashMap<String, ICrypt> cryptuser = null;
+	private ICrypt crypt = null;
 	private String pathToPublicKey = null;
 	private PrivateKey privateKey = null;
 	private HashMap<String, byte[]> secureNumberUser = new HashMap<String, byte[]>();
 	private String pathToDir = null;
 
-	private Command[] availableCommands = {
+	/* ---- GroupBid Management --------------------- */
+	private HashMap<Integer, HashMap<String, GroupBid>> groupBids = null;
+	private GroupBidQueue queuedGroupBids = null; 
+	
+	/* ---- Command variables ----------------------- */
+	private Client servedClient = null;
+
+	private CommandRepository commandRepository = null;
+	private String currentCommand = "";
+	private String[] splittedString;
+	
+	private ICommand[] availableCommands = {
 			new BidAuctionCommand(this),
 			new CreateAuctionCommand(this),
 			new ExitCommand(this),
@@ -78,10 +86,11 @@ implements ExitSender, AuctionCommandReceiverServer, ClientCommandReceiver, Comm
 			new ConfirmGroupBidCommand(this)
 	};
 
-	public ServerModel(MessageSender lmc,
-			CommandSender cc, ClientOperator clientManager) {
+	/* ---- Constructors ---------------------------- */
+	public ServerModel(IMessageSender lmc,
+			ICommandSender cc, IClientOperator clientManager) {
 
-		eObservers = new ArrayList<ExitObserver>();		
+		eObservers = new ArrayList<IExitObserver>();		
 		groupBids = new HashMap<Integer,HashMap<String, GroupBid>>();
 		
 		commandRepository = new CommandRepository(availableCommands);
@@ -93,8 +102,8 @@ implements ExitSender, AuctionCommandReceiverServer, ClientCommandReceiver, Comm
 		cc.registerCommandReceiver(this);
 	}
 
-	public ServerModel(MessageSender lmc,
-			CommandSender cc, ClientOperator clientManager, String pathToPublicKey,PrivateKey privateKey, String pathToDir) {
+	public ServerModel(IMessageSender lmc,
+			ICommandSender cc, IClientOperator clientManager, String pathToPublicKey,PrivateKey privateKey, String pathToDir) {
 
 		this(lmc, cc, clientManager);
 		this.privateKey = privateKey;
@@ -102,26 +111,18 @@ implements ExitSender, AuctionCommandReceiverServer, ClientCommandReceiver, Comm
 		this.pathToDir = pathToDir;
 		//server-challenge erstellen und in Base64 umwandeln wegen leerzeichen
 
-		this.cryptuser = new HashMap<String, Crypt>();
+		this.cryptuser = new HashMap<String, ICrypt>();
 		crypt = new RSACrypt(privateKey);
 	}
 
-	@Override
-	public void registerIOReceiver(IOInstructionReceiver receiver) {
-		ioReceiver = receiver;
-	}
-
+	/* -------------- Message parsing and processing -------------------- */
 	@Override
 	public void receiveMessage(String message) {
 		if(message.length() == 0){
-			this.sendToIOUnit("Shutting down Server!");
+			this.sendToIOUnit(ServerConfig.SHUTDOWNNOTIFICATION);
 			sendExit();
 		}
 		this.sendToIOUnit(message);
-	}
-
-	private void sendToIOUnit( String message ){
-		ioReceiver.receiveInstruction(message);
 	}
 
 	@Override
@@ -131,9 +132,8 @@ implements ExitSender, AuctionCommandReceiverServer, ClientCommandReceiver, Comm
 		servedClient = null;
 	}
 
-
 	private void parseMessage(String message) {
-		Command c = null;
+		ICommand c = null;
 		if( this.isCommand(message) ){
 			c = parseCommand(message);
 			currentCommand = message;
@@ -158,70 +158,55 @@ implements ExitSender, AuctionCommandReceiverServer, ClientCommandReceiver, Comm
 
 	}
 
-	private Command parseCommand(String command){
-		splittedString = command.split(" ");
-		Command c = commandRepository.checkCommand(splittedString[0]);
+	private ICommand parseCommand(String command){
+		splittedString = command.split(ServerConfig.ARGSEPARATOR);
+		String extractedCommand = splittedString[ServerConfig.POSCOMMAND];
+		ICommand c = commandRepository.checkCommand(extractedCommand);
 		return c;
 	}
 
-
-	private boolean isCommand(String message) {
-		return message.charAt(0) == '!';
-	}
-
+	private boolean isCommand(String message) { return message.charAt(0) == ServerConfig.COMMANDNOTIFIER; }
+	
 	private void sendGroupBidNotification(GroupBid groupBid) {
 		clientManager.sendGroupBidNotification(groupBid);	
 	}
 	
-	@Override
-	public void registerExitObserver(ExitObserver e) {
-		eObservers.add(e);
-	}
-
-	@Override
-	public void sendExit() {
-		ExitObserver ioUnit = null;
-		for( ExitObserver eo : eObservers){
-			if( eo instanceof IOUnit ){ ioUnit = eo; }else{ eo.exit(); }
-		}
-		ioUnit.exit();
-	}
-
+	/* -------- Login Management ------------------------- */
 	@Override
 	public void login() {
 		try{
 
-			String clientName = splittedString[1];
-			int udpPort = Integer.parseInt(splittedString[2]);
+			String clientName = splittedString[ServerConfig.POSCLIENTNAME];
+			int udpPort = Integer.parseInt(splittedString[ServerConfig.POSUDPPORT]);
 			clientManager.loginClient(clientName, udpPort, servedClient);
 
-			String userPublicKey = pathToDir +clientName+".pub.pem";
+			String userPublicKey = pathToDir + clientName + ServerConfig.PUBLICKEYFILEPOSTFIX;
 
-			//Rückmeldung über TCP
-			if(!cryptuser.containsKey(clientName))
+			/* Response via TCP */
+			if( !cryptuser.containsKey(clientName) )
 			{
+				//TODO Rethink error handling here
 				try {
 					cryptuser.put(clientName, new RSACrypt(userPublicKey, privateKey));
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
 
-
-
-				//Für jeden Client neue server-challenge
-				byte[] number = new byte[32];
+				/* every client gets a new server challenge */
+				byte[] number = new byte[ServerConfig.SERVERCHALLENGESIZE];
 				new SecureRandom().nextBytes(number);
 				number = Base64.encode(number);			
 				secureNumberUser.put(clientName, number);
 
-				//Für Iv-Param
-				byte[] iv = new byte[16];
+				/* for IV-Param */
+				byte[] iv = new byte[ServerConfig.IVPARAMSIZE];
 				new SecureRandom().nextBytes(iv);
 				iv = Base64.encode(iv);
 
-
 				KeyGenerator generator;
 				SecretKey key = null;
+
+				//TODO Rethinking error handling here
 				try {
 					generator = KeyGenerator.getInstance("AES");
 					generator.init(256); 
@@ -235,40 +220,54 @@ implements ExitSender, AuctionCommandReceiverServer, ClientCommandReceiver, Comm
 				String secretkey = new String(Base64.encode(key.getEncoded()));
 				String serverchallenge = new String(secureNumberUser.get(clientName));
 				String ivparam = new String(iv);
-				String clientchallenge = splittedString[3];
+				String clientchallenge = splittedString[ServerConfig.POSCLIENTCHALLENGE];
 
 				sendToIOUnit(secretkey + " " + ivparam);
 				
-				String cryptmessage = "!ok"+" "+ clientchallenge + " " + serverchallenge + " " + secretkey + " " + ivparam;
+				String cryptmessage = ServerConfig.OKCOMMAND + " " + clientchallenge + " " + serverchallenge + " " + secretkey + " " + ivparam;
 
 				cryptmessage = cryptuser.get(clientName).encodeMessage(cryptmessage);
-
-				
 				this.sendFeedback(cryptmessage);
 				
 				cryptuser.put(clientName, new AESCrypt(key, iv));
 			}
 			else
 			{
-				this.sendFeedback("User alredy logged in!");
+				this.sendFeedback(ServerConfig.USERLOGGEDINERROR);
 			}
 
 		}catch(NumberFormatException nfe){
-			this.sendFeedback("Couldn't login: The udpPort must be numeric and digit between 1024 and 65535!");
+			this.sendFeedback(ServerConfig.PORTFORAMTERROR);
 		} 
 	}
 
 	@Override
 	public void logout() {
 		clientManager.logoffClient(servedClient);
-		this.sendFeedback("You are logged out now.");
+		this.sendFeedback(ServerConfig.LOGOUTNOTIFICATON);
 	}
 
+	private void checkClientServerChallenge(byte[] number)
+	{
+		//TODO Remove this outputline
+		sendToIOUnit("JA");
+		//TODO
+		if(!number.equals(secureNumberUser.get(servedClient.getClientName())))
+		{
+			//TODO send error message and reset Client
+		}
+		else
+		{
+			sendToIOUnit("login successful!");
+		}
+	}
+
+	
+	/* ---------- Auction Management ------------------------- */	
 	@Override
 	public void createAuction() {
-
 		try{
-			int time = Integer.parseInt(splittedString[1]);
+			int time = Integer.parseInt(splittedString[ServerConfig.POSAUCTIONTIME]);
 			String description = "";
 
 			int i = 2;
@@ -282,24 +281,19 @@ implements ExitSender, AuctionCommandReceiverServer, ClientCommandReceiver, Comm
 			int auctionId = auctionManager.addAuction(description, servedClient, time);
 			groupBids.put(auctionId, new HashMap<String, GroupBid>() );
 			
-		}catch(NumberFormatException nfe){
-			this.sendFeedback("Couldn't create auction: The time must be numeric.");
-		}
+		}catch(NumberFormatException nfe){this.sendFeedback(ServerConfig.TIMEFORMATERROR);}
 	}
 
 	@Override
 	public void bidForAuction() {
-
 		try{
-			
-			int auctionNumber = Integer.parseInt(splittedString[1]);
-			double bid = Double.parseDouble(splittedString[2]);
+			int auctionNumber = Integer.parseInt(splittedString[ServerConfig.POSAUCTIONNUMBER]);
+			double bid = Double.parseDouble(splittedString[ServerConfig.POSBID]);
 						
-			if( auctionManager.isAuctionIdAvailable(auctionNumber)){
-				throw new ProductNotAvailableException();
-			}
+			if( auctionManager.isAuctionIdAvailable(auctionNumber)){ throw new ProductNotAvailableException(); }
 			
-			if( currentCommand.equals("groupBid")){
+			/* --- GroupBid part ---------------- */
+			if( splittedString[ServerConfig.POSCOMMAND].equals(ServerConfig.GROUPBIDCOMMAND)){
 				GroupBid gb = new GroupBid(auctionNumber,bid, servedClient);
 				if( groupBids.size() < auctionManager.getAuctionAmount() ){			
 					//TODO is a group on the same auction allowed???
@@ -308,21 +302,18 @@ implements ExitSender, AuctionCommandReceiverServer, ClientCommandReceiver, Comm
 					
 					this.sendGroupBidNotification(gb);
 				}else{
-					this.sendFeedback("There are already too much groupBids! The Bid will be set when it is possible!");
+					this.sendFeedback( ServerConfig.GROUPBIDFULLERROR );
 					queuedGroupBids.enqueue(gb);
 				}
 				
-			}else{
-				auctionManager.bidForAuction(auctionNumber, servedClient, bid);
-			}
+			}else{ auctionManager.bidForAuction(auctionNumber, servedClient, bid); }
 			
 		}catch( NumberFormatException nfe ){
-			this.sendFeedback("Couldn't bid for auction: auctionNumber and bid-number must be numeric.");
+			this.sendFeedback(ServerConfig.BIDNUMBERFORMAtERROR);
 		}catch( ProductNotAvailableException pnae){
-			this.sendFeedback("The Auction you want to bid is not available.");
+			this.sendFeedback(ServerConfig.AUCTIONNOTAVAILABLEERROR);
 		}
 	}
-
 
 	@Override
 	public void list() {
@@ -330,66 +321,31 @@ implements ExitSender, AuctionCommandReceiverServer, ClientCommandReceiver, Comm
 	}
 
 	@Override
-	public void exit() {
-		clientManager.shutDownClient(servedClient);
-	}
-
-	@Override
 	public void overbid() {
-		String notification = splittedString[0] + " ";
+		String notification = splittedString[0] + ServerConfig.ARGSEPARATOR;
 		int i = 1;
-		for( ; i < splittedString.length-1; i++ ){
-			notification += splittedString[i];
-		}
+		for( ; i < splittedString.length-1; i++ ){ notification += splittedString[i]; }
 
 		String lastBidder = splittedString[i];
-
 		clientManager.sendNotification(notification, lastBidder);
 	}
 
 	@Override
 	public void endAuction() {
-		String notification = splittedString[0] + " " + splittedString[1] + " " + splittedString[2] + " ";
+		String notification = splittedString[0] + ServerConfig.ARGSEPARATOR + splittedString[1] + ServerConfig.ARGSEPARATOR + splittedString[2] + ServerConfig.ARGSEPARATOR;
 		int i = 3;
-		for( ; i < splittedString.length-1; i++ ){
-			notification += splittedString[i];
-		}
+		for( ; i < splittedString.length-1; i++ ){ notification += splittedString[i]; }
 
 		String receiver = splittedString[i];
 		clientManager.sendNotification(notification, receiver);
 	}
-
-	@Override
-	public void invokeShutdown() {
-		this.sendExit();
-	}
-
-	@Override
-	public void ok() {
-		// TODO Auto-generated method stub
-
-	}
-
-	private void checkClientServerChallenge(byte[] number)
-	{
-		sendToIOUnit("JA");
-		//TODO
-		if(!number.equals(secureNumberUser.get(servedClient.getClientName())))
-		{
-			//TODO send error message and reset Client
-		}
-		else
-		{
-			sendToIOUnit("login successful!");
-		}
-	}
-
+	/* --------- GroupBid management -------------------------------- */
 	@Override
 	public void confirmGroupBid() {
 		try{
-			int auctionNumber = Integer.parseInt(splittedString[1]);
-			double bid = Double.parseDouble(splittedString[2]);
-			String groupBidder = splittedString[3];
+			int auctionNumber = Integer.parseInt(splittedString[ServerConfig.POSAUCTIONNUMBER]);
+			double bid = Double.parseDouble(splittedString[ServerConfig.POSBID]);
+			String groupBidder = splittedString[ServerConfig.POSGROUPBIDDER];
 		
 			if( !groupBids.containsKey(auctionNumber) ){
 				throw new ProductNotAvailableException();
@@ -407,7 +363,7 @@ implements ExitSender, AuctionCommandReceiverServer, ClientCommandReceiver, Comm
 				throw new BidTooLowException();
 			}
 			
-			if( gb.addConfirmClient(servedClient) == 2){
+			if( gb.addConfirmClient(servedClient) == ServerConfig.CONFIRMLIMIT){
 				confirmBid(gb);
 				notifyClients(gb);
 				memberBids.remove(groupBidder);
@@ -424,13 +380,13 @@ implements ExitSender, AuctionCommandReceiverServer, ClientCommandReceiver, Comm
 			}
 			
 		}catch( NumberFormatException nfe ){
-			this.sendFeedback("!reject Couldn't confirm groupAuction: auctionNumber and bid must be numeric!" );
+			this.sendFeedback(ServerConfig.REJECTCOMMAND + " Couldn't confirm groupAuction: auctionNumber and bid must be numeric!" );
 		}catch( ProductNotAvailableException pnae){
-			this.sendFeedback("!reject The AuctionId you want to confirm to is not available!");
+			this.sendFeedback(ServerConfig.REJECTCOMMAND + " The AuctionId you want to confirm to is not available!");
 		}catch( BidderNotAvailableException bnae){
-			this.sendFeedback("!reject The Client you want to confirm has not bid to an auction with the given ID!");
+			this.sendFeedback(ServerConfig.REJECTCOMMAND + " The Client you want to confirm has not bid to an auction with the given ID!");
 		}catch( BidTooLowException btle ){
-			this.sendFeedback("!reject Your bid is not equal to that of the group\'s bidder!");
+			this.sendFeedback(ServerConfig.REJECTCOMMAND + " Your bid is not equal to that of the group\'s bidder!");
 		}
 			
 	}
@@ -451,19 +407,48 @@ implements ExitSender, AuctionCommandReceiverServer, ClientCommandReceiver, Comm
 		}
 	}
 
-	private void sendFeedback( String message ){
-		this.sendFeedback(servedClient,message);
-	}
+	
+	/* ---------- Communication --------------- */
+	private void sendFeedback( String message ){ this.sendFeedback(servedClient,message); }
 	
 	private void sendFeedback(Client c, String message ){
-				
+		//TODO Encryption of feedback messages
 		clientManager.sendFeedback(c, message);
 	}
+
+	private void sendToIOUnit( String message ){ ioReceiver.receiveInstruction(message); }
+
+	@Override
+	public void registerIOReceiver(IOInstructionReceiver receiver) { ioReceiver = receiver; }
+
+	/* ---- Exit management -----------------------*/
+	@Override
+	public void registerExitObserver(IExitObserver e) { eObservers.add(e); }
+
+	@Override
+	public void sendExit() {
+		IExitObserver ioUnit = null;
+		for( IExitObserver eo : eObservers){
+			if( eo instanceof IOUnit ){ ioUnit = eo; }else{ eo.exit(); }
+		}
+		ioUnit.exit();
+	}
+
+	@Override
+	public void invokeShutdown() { this.sendExit(); }
+
+	@Override
+	public void exit() { clientManager.shutDownClient(servedClient); }
+
 	
+	/* --- unused Methods --------------------------*/
 	@Override
 	public void rejectGroupBid() {}
 
 	@Override
 	public void notifyConfirmed() {}
+
+	@Override
+	public void ok() {}
 
 }

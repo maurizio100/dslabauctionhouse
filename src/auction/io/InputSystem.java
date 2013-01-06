@@ -7,14 +7,14 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.StringReader;
 
-import auction.communication.MessageReceiver;
+import auction.interfaces.IMessageReceiver;
 
 public class InputSystem extends Thread{
 
-	private MessageReceiver ioUnit;
+	private IMessageReceiver ioUnit;
 	private BufferedReader in;
 
-	public InputSystem(MessageReceiver rcv) {
+	public InputSystem(IMessageReceiver rcv) {
 		ioUnit = rcv;
 		in = new BufferedReader(new InputStreamReader(System.in));
 		this.start(); 
