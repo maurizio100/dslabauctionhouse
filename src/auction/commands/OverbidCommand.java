@@ -1,7 +1,6 @@
 package auction.commands;
 
 import auction.interfaces.IAuctionCommandReceiverServer;
-import auction.interfaces.ICommand;
 
 public class OverbidCommand implements ICommand {
 

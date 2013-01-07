@@ -1,10 +1,8 @@
 package auction.io;
 
-import auction.interfaces.IExitObserver;
-import auction.interfaces.IExitSender;
-import auction.interfaces.IOInstructionReceiver;
-import auction.interfaces.IOInstructionSender;
-import auction.interfaces.IMessageReceiver;
+import auction.communication.interfaces.IExitObserver;
+import auction.communication.interfaces.IExitSender;
+import auction.communication.interfaces.IMessageReceiver;
 
 public class IOUnit implements IOInstructionReceiver, IMessageReceiver, IExitObserver{
 

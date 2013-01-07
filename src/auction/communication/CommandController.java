@@ -2,8 +2,8 @@ package auction.communication;
 
 import java.util.ArrayList;
 
-import auction.interfaces.ICommandReceiver;
-import auction.interfaces.ICommandSender;
+import auction.commands.ICommandReceiver;
+import auction.commands.ICommandSender;
 import auction.server.Client;
 
 public class CommandController implements ICommandReceiver, ICommandSender{

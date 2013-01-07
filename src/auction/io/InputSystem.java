@@ -7,7 +7,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.StringReader;
 
-import auction.interfaces.IMessageReceiver;
+import auction.communication.interfaces.IMessageReceiver;
 
 public class InputSystem extends Thread{
 

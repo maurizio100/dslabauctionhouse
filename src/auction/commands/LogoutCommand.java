@@ -1,7 +1,6 @@
 package auction.commands;
 
-import auction.interfaces.IClientCommandReceiver;
-import auction.interfaces.ICommand;
+import auction.client.interfaces.IClientCommandReceiver;
 
 public class LogoutCommand implements ICommand {
 

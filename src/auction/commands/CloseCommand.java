@@ -1,6 +1,5 @@
 package auction.commands;
 
-import auction.interfaces.ICommand;
 import auction.interfaces.IServerControl;
 
 public class CloseCommand implements ICommand {

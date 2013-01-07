@@ -8,7 +8,7 @@ import java.util.GregorianCalendar;
 import java.util.TimerTask;
 
 import auction.interfaces.IAuctionEndReceiver;
-import auction.interfaces.IClientThread;
+import auction.server.interfaces.IClientThread;
 
 public class Auction extends TimerTask{
 

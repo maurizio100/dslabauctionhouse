@@ -3,14 +3,14 @@ package auction.server;
 import java.util.HashMap;
 import java.util.Timer;
 
+import auction.commands.ICommandReceiver;
+import auction.communication.interfaces.IExitObserver;
+import auction.communication.interfaces.IExitSender;
+import auction.communication.interfaces.IFeedbackObserver;
 import auction.exceptions.ProductNotAvailableException;
 import auction.interfaces.IAuctionEndReceiver;
-import auction.interfaces.IAuctionOperator;
-import auction.interfaces.IClientThread;
-import auction.interfaces.ICommandReceiver;
-import auction.interfaces.IExitObserver;
-import auction.interfaces.IExitSender;
-import auction.interfaces.IFeedbackObserver;
+import auction.server.interfaces.IAuctionOperator;
+import auction.server.interfaces.IClientThread;
 
 public class AuctionManager implements IAuctionOperator, IAuctionEndReceiver,
 		IExitObserver {

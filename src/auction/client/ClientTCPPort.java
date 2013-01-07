@@ -6,11 +6,12 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.UnknownHostException;
+
+import auction.communication.interfaces.IExitObserver;
+import auction.communication.interfaces.IExitSender;
+import auction.communication.interfaces.IMessageReceiver;
+import auction.communication.interfaces.IMessageSender;
 import auction.exceptions.ServerDisconnectedException;
-import auction.interfaces.IExitObserver;
-import auction.interfaces.IExitSender;
-import auction.interfaces.IMessageReceiver;
-import auction.interfaces.IMessageSender;
 
 public class ClientTCPPort extends Thread implements IMessageReceiver, IExitObserver{
 

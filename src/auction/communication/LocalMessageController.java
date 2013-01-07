@@ -1,7 +1,7 @@
 package auction.communication;
 
-import auction.interfaces.IMessageReceiver;
-import auction.interfaces.IMessageSender;
+import auction.communication.interfaces.IMessageReceiver;
+import auction.communication.interfaces.IMessageSender;
 
 
 public class LocalMessageController implements IMessageReceiver, IMessageSender{

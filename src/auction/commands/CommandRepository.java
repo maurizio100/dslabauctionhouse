@@ -2,7 +2,6 @@ package auction.commands;
 
 import java.util.HashMap;
 
-import auction.interfaces.ICommand;
 
 public class CommandRepository {
 

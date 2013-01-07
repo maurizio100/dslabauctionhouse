@@ -14,6 +14,7 @@ import javax.crypto.SecretKey;
 
 import org.bouncycastle.util.encoders.Base64;
 
+import auction.client.interfaces.IClientCommandReceiver;
 import auction.commands.AuctionEndedCommand;
 import auction.commands.BidAuctionCommand;
 import auction.commands.CommandRepository;
@@ -21,34 +22,33 @@ import auction.commands.ConfirmGroupBidCommand;
 import auction.commands.CreateAuctionCommand;
 import auction.commands.ExitCommand;
 import auction.commands.GroupBidAuctionCommand;
+import auction.commands.ICommand;
+import auction.commands.ICommandReceiver;
+import auction.commands.ICommandSender;
 import auction.commands.ListCommand;
 import auction.commands.LoginCommand;
 import auction.commands.LogoutCommand;
 import auction.commands.OverbidCommand;
+import auction.communication.interfaces.IExitObserver;
+import auction.communication.interfaces.IExitSender;
+import auction.communication.interfaces.IFeedbackObserver;
+import auction.communication.interfaces.IMessageReceiver;
+import auction.communication.interfaces.IMessageSender;
 import auction.crypt.AESCrypt;
 import auction.crypt.HMAC;
+import auction.crypt.ICrypt;
 import auction.crypt.RSACrypt;
 import auction.exceptions.BidTooLowException;
 import auction.exceptions.BidderNotAvailableException;
 import auction.exceptions.BidderSameConfirmException;
 import auction.exceptions.ProductNotAvailableException;
 import auction.interfaces.IAuctionCommandReceiverServer;
-import auction.interfaces.IAuctionOperator;
-import auction.interfaces.IClientCommandReceiver;
-import auction.interfaces.IClientOperator;
-import auction.interfaces.IClientThread;
-import auction.interfaces.ICommand;
-import auction.interfaces.ICommandReceiver;
-import auction.interfaces.ICommandSender;
-import auction.interfaces.ICrypt;
-import auction.interfaces.IExitObserver;
-import auction.interfaces.IExitSender;
-import auction.interfaces.IFeedbackObserver;
-import auction.interfaces.IMessageReceiver;
-import auction.interfaces.IMessageSender;
-import auction.interfaces.IOInstructionReceiver;
-import auction.interfaces.IOInstructionSender;
+import auction.io.IOInstructionReceiver;
+import auction.io.IOInstructionSender;
 import auction.io.IOUnit;
+import auction.server.interfaces.IAuctionOperator;
+import auction.server.interfaces.IClientOperator;
+import auction.server.interfaces.IClientThread;
 
 public class ServerModel 
 implements IExitSender, IAuctionCommandReceiverServer, IClientCommandReceiver, ICommandReceiver,IMessageReceiver, IOInstructionSender, IFeedbackObserver{

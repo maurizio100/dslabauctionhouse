@@ -15,7 +15,6 @@ import javax.crypto.NoSuchPaddingException;
 import org.bouncycastle.openssl.PEMReader;
 import org.bouncycastle.util.encoders.Base64;
 
-import auction.interfaces.ICrypt;
 
 
 public class RSACrypt implements ICrypt{

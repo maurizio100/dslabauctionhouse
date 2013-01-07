@@ -1,7 +1,6 @@
 package auction.commands;
 
-import auction.interfaces.IAuctionCommandReceiverClient;
-import auction.interfaces.ICommand;
+import auction.client.interfaces.IAuctionCommandReceiverClient;
 
 public class GroupBidAuctionCommand implements ICommand {
 

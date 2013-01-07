@@ -16,7 +16,6 @@ import javax.crypto.spec.SecretKeySpec;
 
 import org.bouncycastle.util.encoders.Base64;
 
-import auction.interfaces.ICrypt;
 
 public class AESCrypt implements ICrypt{
 	

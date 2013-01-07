@@ -6,10 +6,10 @@ import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 
+import auction.communication.interfaces.IExitObserver;
+import auction.communication.interfaces.IExitSender;
+import auction.communication.interfaces.IMessageReceiver;
 import auction.exceptions.PortRangeException;
-import auction.interfaces.IExitObserver;
-import auction.interfaces.IExitSender;
-import auction.interfaces.IMessageReceiver;
 
 public class ServerTCPPort extends Thread implements IExitObserver{
 

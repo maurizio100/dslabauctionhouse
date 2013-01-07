@@ -7,10 +7,10 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.Socket;
 
-import auction.interfaces.IClientThread;
-import auction.interfaces.ICommandReceiver;
-import auction.interfaces.ICrypt;
-import auction.interfaces.IMessageReceiver;
+import auction.commands.ICommandReceiver;
+import auction.communication.interfaces.IMessageReceiver;
+import auction.crypt.ICrypt;
+import auction.server.interfaces.IClientThread;
 
 public class Client implements Runnable, IClientThread{
 

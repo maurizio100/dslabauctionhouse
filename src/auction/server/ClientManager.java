@@ -9,11 +9,11 @@ import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import auction.interfaces.IClientOperator;
-import auction.interfaces.IClientThread;
-import auction.interfaces.ICommandReceiver;
-import auction.interfaces.IExitObserver;
-import auction.interfaces.IMessageReceiver;
+import auction.commands.ICommandReceiver;
+import auction.communication.interfaces.IExitObserver;
+import auction.communication.interfaces.IMessageReceiver;
+import auction.server.interfaces.IClientOperator;
+import auction.server.interfaces.IClientThread;
 
 public class ClientManager implements IClientOperator, IExitObserver{
 
