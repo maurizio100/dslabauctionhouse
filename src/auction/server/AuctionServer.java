@@ -27,7 +27,6 @@ public class AuctionServer {
 				);
 	}
 
-
 	public static void main(String[] args){
 
 		int tcpPort = -1;
@@ -39,7 +38,7 @@ public class AuctionServer {
 		try {
 			pathToPublicKey = args[1];
 			pathToDir = args[4];
-			
+
 			/* --- password request for server's private key --- */
 			PEMReader in;
 			String pathToPrivateKey = args[3];

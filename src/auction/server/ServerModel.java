@@ -126,9 +126,9 @@ implements IExitSender, IAuctionCommandReceiverServer, IClientCommandReceiver, I
 	/* -------------- Message parsing and processing -------------------- */
 	@Override
 	public void receiveMessage(String message) {
-		if(message.length() == 0){
+		if(message.isEmpty()){
 			this.sendToIOUnit(ServerConfig.SHUTDOWNNOTIFICATION);
-			sendExit();
+			this.invokeShutdown();
 		}
 		this.sendToIOUnit(message);
 	}
@@ -507,7 +507,7 @@ implements IExitSender, IAuctionCommandReceiverServer, IClientCommandReceiver, I
 	}
 
 	@Override
-	public void invokeShutdown() { timer.cancel(); this.sendExit(); }
+	public void invokeShutdown() { timer.cancel();  this.sendExit(); }
 
 	@Override
 	public void exit() { clientManager.shutDownClient(servedClient); }

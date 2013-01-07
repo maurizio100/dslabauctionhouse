@@ -70,5 +70,11 @@ public class IOUnit implements IOInstructionReceiver, IMessageReceiver, IExitObs
 	public String performInput() {
 		return input.getInput();
 	}
+
+	@Override
+	public void switchToOfflineMode() {
+		// TODO Auto-generated method stub
+		
+	}
 	
 }
