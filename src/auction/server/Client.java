@@ -7,9 +7,9 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.Socket;
 
-import auction.commands.ICommandReceiver;
-import auction.communication.interfaces.IMessageReceiver;
-import auction.crypt.ICrypt;
+import auction.global.interfaces.ICommandReceiver;
+import auction.global.interfaces.ICrypt;
+import auction.global.interfaces.ILocalMessageReceiver;
 import auction.server.interfaces.IClientThread;
 
 public class Client implements Runnable, IClientThread{
@@ -19,7 +19,7 @@ public class Client implements Runnable, IClientThread{
 	private PrintWriter output = null;
 
 	private ICommandReceiver commandController = null;
-	private IMessageReceiver localMessenger = null;
+	private ILocalMessageReceiver localMessenger = null;
 
 	private String clientName = null;
 	private InetAddress host = null;
@@ -27,7 +27,7 @@ public class Client implements Runnable, IClientThread{
 
 	private boolean loggedIn = false;
 
-	public Client(Socket socket, ICommandReceiver controller, IMessageReceiver rcv) throws IOException{
+	public Client(Socket socket, ICommandReceiver controller, ILocalMessageReceiver rcv) throws IOException{
 		activeSocket = socket;
 		commandController = controller;
 		host = socket.getInetAddress();
@@ -66,7 +66,7 @@ public class Client implements Runnable, IClientThread{
 	}
 
 	private void sendToLocalMessenger( String message ){
-		localMessenger.receiveMessage(message);
+		localMessenger.receiveLocalMessage(message);
 	}
 
 	@Override

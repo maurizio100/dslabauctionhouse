@@ -11,11 +11,11 @@ import java.security.PrivateKey;
 import org.bouncycastle.openssl.PEMReader;
 import org.bouncycastle.openssl.PasswordFinder;
 
-import auction.communication.CommandController;
-import auction.communication.LocalMessageController;
-import auction.crypt.RSACrypt;
-import auction.exceptions.PortRangeException;
-import auction.io.IOUnit;
+import auction.global.communication.CommandController;
+import auction.global.communication.LocalMessageController;
+import auction.global.crypt.RSACrypt;
+import auction.global.exceptions.PortRangeException;
+import auction.global.io.IOUnit;
 
 public class AuctionServer {
 

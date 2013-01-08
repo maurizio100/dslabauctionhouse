@@ -9,9 +9,9 @@ import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import auction.commands.ICommandReceiver;
-import auction.communication.interfaces.IExitObserver;
-import auction.communication.interfaces.IMessageReceiver;
+import auction.global.interfaces.ICommandReceiver;
+import auction.global.interfaces.IExitObserver;
+import auction.global.interfaces.ILocalMessageReceiver;
 import auction.server.interfaces.IClientOperator;
 import auction.server.interfaces.IClientThread;
 
@@ -19,7 +19,7 @@ public class ClientManager implements IClientOperator, IExitObserver{
 
 	private ICommandReceiver commandMessenger = null;
 	private ExecutorService executorService = null;	
-	private IMessageReceiver localMessenger = null;
+	private ILocalMessageReceiver localMessenger = null;
 
 	private HashMap<String, IClientThread> loggedInClients = null;
 	private HashMap<String, ArrayList<String>> queuedNotifications = null;
@@ -27,7 +27,7 @@ public class ClientManager implements IClientOperator, IExitObserver{
 
 	private ServerUDPPort serverUDPPort = null;
 
-	public ClientManager(ICommandReceiver commandController, IMessageReceiver rcv) {
+	public ClientManager(ICommandReceiver commandController, ILocalMessageReceiver rcv) {
 		commandMessenger = commandController;
 		executorService = Executors.newCachedThreadPool();
 		localMessenger = rcv;
@@ -44,7 +44,7 @@ public class ClientManager implements IClientOperator, IExitObserver{
 			executorService.execute(c);
 			allClients.add(c);
 		}catch(IOException e){
-			localMessenger.receiveMessage("Client couldnt be initialized.");
+			localMessenger.receiveLocalMessage("Client couldnt be initialized.");
 		}
 	}
 
@@ -54,7 +54,7 @@ public class ClientManager implements IClientOperator, IExitObserver{
 	}
 
 	private void sendToLocalMessenger( String message ){
-		localMessenger.receiveMessage(message);
+		localMessenger.receiveLocalMessage(message);
 	}
 
 	@Override

@@ -21,46 +21,48 @@ import org.bouncycastle.openssl.PEMReader;
 import org.bouncycastle.openssl.PasswordFinder;
 import org.bouncycastle.util.encoders.Base64;
 
-import auction.client.interfaces.IAuctionCommandReceiverClient;
-import auction.client.interfaces.IClientCommandReceiver;
-import auction.commands.AuctionEndedCommand;
-import auction.commands.AuctionListCommand;
-import auction.commands.BidAuctionCommand;
-import auction.commands.CommandRepository;
-import auction.commands.ConfirmGroupBidCommand;
-import auction.commands.CreateAuctionCommand;
-import auction.commands.ExitCommand;
-import auction.commands.GroupBidAuctionCommand;
-import auction.commands.ICommand;
-import auction.commands.ListCommand;
-import auction.commands.LoginCommand;
-import auction.commands.LoginRejectCommand;
-import auction.commands.LogoutCommand;
-import auction.commands.OkCommand;
+import auction.client.commands.AuctionEndedCommand;
+import auction.client.commands.LoginRejectCommand;
+import auction.client.commands.NotifyConfirmGroupBidCommand;
+import auction.client.commands.OkCommand;
+import auction.client.commands.OverbidCommand;
+import auction.client.commands.RejectGroupBidCommand;
+import auction.client.interfaces.ICommandReceiverClient;
+import auction.client.interfaces.INetworkControl;
+import auction.client.interfaces.INetworkMessageReceiver;
 
-import auction.commands.NotifyConfirmGroupBidCommand;
-import auction.commands.OverbidCommand;
-import auction.commands.RejectGroupBidCommand;
-import auction.communication.interfaces.IExitObserver;
-import auction.communication.interfaces.IExitSender;
-import auction.communication.interfaces.IMessageReceiver;
-import auction.communication.interfaces.IMessageSender;
-import auction.crypt.AESCrypt;
-import auction.crypt.HMAC;
-import auction.crypt.ICrypt;
-import auction.crypt.RSACrypt;
-import auction.exceptions.NotACommandException;
-import auction.interfaces.IAuctionCommandReceiverServer;
-import auction.io.IOInstructionReceiver;
-import auction.io.IOInstructionSender;
-import auction.io.IOUnit;
+import auction.global.commands.BidAuctionCommand;
+import auction.global.commands.CommandRepository;
+import auction.global.commands.ConfirmGroupBidCommand;
+import auction.global.commands.CreateAuctionCommand;
+import auction.global.commands.ExitCommand;
+import auction.global.commands.GroupBidAuctionCommand;
+import auction.global.commands.ListCommand;
+import auction.global.commands.LoginCommand;
+import auction.global.commands.LogoutCommand;
+import auction.global.config.GlobalConfig;
+import auction.global.crypt.AESCrypt;
+import auction.global.crypt.HMAC;
+import auction.global.crypt.RSACrypt;
+import auction.global.exceptions.NotACommandException;
+import auction.global.interfaces.IAuctionCommandReceiver;
+import auction.global.interfaces.ICommand;
+import auction.global.interfaces.ICrypt;
+import auction.global.interfaces.IExitObserver;
+import auction.global.interfaces.IExitSender;
+import auction.global.interfaces.ILocalMessageReceiver;
+import auction.global.interfaces.ILocalMessageSender;
+import auction.global.io.IOInstructionReceiver;
+import auction.global.io.IOInstructionSender;
+import auction.global.io.IOUnit;
 
 public class ClientModel 
-implements IMessageReceiver, IOInstructionSender, IExitSender, IAuctionCommandReceiverClient, IClientCommandReceiver, IAuctionCommandReceiverServer{
+implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, IExitSender, ICommandReceiverClient{
 
 	/*--------------Communication----------------------*/
-	private IMessageSender localMessenger = null;
-	private IMessageReceiver networkMessenger = null;
+	private ILocalMessageSender localMessenger = null;
+	private ILocalMessageReceiver networkMessenger = null;
+	private INetworkControl nwcontrol = null;
 	private IOInstructionReceiver ioReceiver = null;
 	private ArrayList<IExitObserver> eObservers = null;
 	private String username = null;
@@ -100,22 +102,22 @@ implements IMessageReceiver, IOInstructionSender, IExitSender, IAuctionCommandRe
 
 
 	/* ------------------- Constructors ------------------ */
-	public ClientModel(IMessageSender lmc,
-			IMessageReceiver nmfc, int udpPort) {
+	public ClientModel(ILocalMessageSender lmc, int udpPort, INetworkControl nwcontrol) {
 
 		localMessenger = lmc;
-		networkMessenger = nmfc;
-
 		localMessenger.registerMessageReceiver(this);
+
+		this.nwcontrol = nwcontrol;
+		this.nwcontrol.registerNetworkMessageReceiver(this);
+
 		eObservers = new ArrayList<IExitObserver>();
 
 		commandRepository = new CommandRepository(availableCommands);
 		this.udpPort = udpPort;
 	}
 
-	public ClientModel(IMessageSender lmc,
-			IMessageReceiver nmfc, int udpPort, String pathToPublicKey, String pathToPrivateKey) {
-		this(lmc, nmfc, udpPort);
+	public ClientModel(ILocalMessageSender lmc, int udpPort, INetworkControl nwcontrol, String pathToPublicKey, String pathToPrivateKey) {
+		this(lmc, udpPort, nwcontrol);
 		this.pathToPrivateKey = pathToPrivateKey;
 		this.pathToPublicKey = pathToPublicKey;
 
@@ -126,8 +128,25 @@ implements IMessageReceiver, IOInstructionSender, IExitSender, IAuctionCommandRe
 
 	/* -------- Message parsing and processing ---------------*/
 	@Override
-	public void receiveMessage(String message) {
-		parseMessage(message);
+	public void receiveNetworkMessage(String message) {
+		if( !message.isEmpty() ){
+			parseNetworkMessage(message);
+		}
+	}
+
+	@Override
+	public void receiveNetworkInformation(String info) {
+		if( !info.isEmpty() ){
+			sendToIOUnit(info);
+		}
+	}
+
+
+	@Override
+	public void receiveLocalMessage(String message) {
+		if( !message.isEmpty() ){
+			parseLocalMessage(message);
+		}
 	}
 
 	private boolean isCommand(String message) {
@@ -143,60 +162,58 @@ implements IMessageReceiver, IOInstructionSender, IExitSender, IAuctionCommandRe
 		return c;
 	}
 
-	private void parseMessage(String message) {
-		if(!message.isEmpty())
-		{
-			try{
-				ICommand c = null;
+	private void parseNetworkMessage( String message ){
+		try{
+			ICommand c = null;
+			if(crypt != null){
+				/* decrypt messages */
+				message = crypt.decodeMessage(message);
 				if( this.isCommand(message) ){
 					c = parseCommand(message);
 					currentCommand = message;
-				}
-				else if(crypt != null)
-				{
-					/* decrypt messages */
-					message = crypt.decodeMessage(message);
-					if( this.isCommand(message) ){
-						c = parseCommand(message);
-						currentCommand = message;
-					}
-				}		
-				if(c!= null)
-				{
 					c.execute();
-					currentCommand = null;
-				}
-				else{
-					if(loggedIn)
-					{
+				}else{
+					if(loggedIn){
 						String content = "";
 						splittedString = message.split(" ");
-						for(int i = 0; i<splittedString.length-1; i++)
-						{
+						for(int i = 0; i<splittedString.length-1; i++){
 							content += splittedString[i];
 							if(i < splittedString.length-2 )
 							{
 								content += " ";
 							}
 						}
-						if(checkHMAC(splittedString[(splittedString.length-1)], content))
-						{
+
+						if(checkHMAC(splittedString[(splittedString.length-1)], content)){
 							sendToIOUnit(content);
-						}
-						else
-						{
+						}else{
 							sendToIOUnit("Error HMAC is not equal");
 						}
-					}
-					else
-					{
+
+					}else{
 						sendToIOUnit(message);
 					}
-				}
-			}catch( NotACommandException nace ){
-				ioReceiver.receiveInstruction(nace.getMessage());
+				}					
 			}
+		}catch( NotACommandException nace ){
+			sendToIOUnit(nace.getMessage());
 		}
+	}
+
+	private void parseLocalMessage(String message) {
+		try{
+			ICommand c = null;
+			if( this.isCommand(message) ){
+				c = parseCommand(message);
+				currentCommand = message;
+				c.execute();
+				currentCommand = null;
+			}
+
+		}catch( NotACommandException nace ){
+			sendToIOUnit(nace.getMessage());
+		}
+
 	}
 
 	private void sendSyntaxError( String command, String correctSyntax){
@@ -218,8 +235,6 @@ implements IMessageReceiver, IOInstructionSender, IExitSender, IAuctionCommandRe
 			this.sendSyntaxError(splittedString[0], "!login <username>");
 			return;
 		}
-
-		//		ioReceiver.setUser(splittedString[1]);
 
 		/* password request for private key */
 		PEMReader in;
@@ -257,7 +272,7 @@ implements IMessageReceiver, IOInstructionSender, IExitSender, IAuctionCommandRe
 
 		String c = new String(clientchallenge); 
 		String s = new String(secureNumber);
-		
+
 		if(s.equals(c))
 		{
 
@@ -270,7 +285,7 @@ implements IMessageReceiver, IOInstructionSender, IExitSender, IAuctionCommandRe
 			this.sendToNetwork(splittedString[2]);
 			this.sendToIOUnit("Login Successful");
 			loggedIn = true;
-			
+
 		}
 		else
 		{
@@ -292,7 +307,6 @@ implements IMessageReceiver, IOInstructionSender, IExitSender, IAuctionCommandRe
 		}
 		crypt = null;
 		this.sendToNetwork(currentCommand);
-		ioReceiver.resetUser();
 		loggedIn = false;
 		username = null;
 	}
@@ -377,8 +391,7 @@ implements IMessageReceiver, IOInstructionSender, IExitSender, IAuctionCommandRe
 			} catch (InterruptedException e) {
 
 			}
-		}
-		
+		}	
 	}
 
 	@Override
@@ -402,7 +415,7 @@ implements IMessageReceiver, IOInstructionSender, IExitSender, IAuctionCommandRe
 		{
 			message = crypt.encodeMessage(message);
 		}
-		networkMessenger.receiveMessage(message);
+		networkMessenger.receiveLocalMessage(message);
 	}
 
 	/*------------------------IO-Unit--------------------------------_*/
@@ -412,7 +425,7 @@ implements IMessageReceiver, IOInstructionSender, IExitSender, IAuctionCommandRe
 	}
 
 	private void sendToIOUnit( String message ){
-		ioReceiver.receiveInstruction(message);
+		ioReceiver.processInstruction(message);
 	}
 
 	/* ---------- Exit management ------------ */
@@ -423,12 +436,11 @@ implements IMessageReceiver, IOInstructionSender, IExitSender, IAuctionCommandRe
 
 	@Override
 	public void exit() {
-		
+
 		if(loggedIn){
 			this.logout();
 			loggedIn = false;
 			username = null;
-			ioReceiver.resetUser();
 		}
 		this.sendExit();
 	}
@@ -443,13 +455,8 @@ implements IMessageReceiver, IOInstructionSender, IExitSender, IAuctionCommandRe
 
 	}
 
-	@Override
-	public void invokeShutdown() {
-		this.sendExit();
-	}
-
 	private boolean checkHMAC(String hash, String content) {
-		
+
 		HMAC h;
 		try {
 			hash = new String(Base64.decode(hash.getBytes()));
@@ -465,7 +472,7 @@ implements IMessageReceiver, IOInstructionSender, IExitSender, IAuctionCommandRe
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
+
 		return false;
 	}
 
@@ -475,17 +482,9 @@ implements IMessageReceiver, IOInstructionSender, IExitSender, IAuctionCommandRe
 		crypt = null;
 		username = null;
 		loggedIn = false;
-		
-		sendToIOUnit(splittedString[1]);
-		
-	}
 
-	@Override
-	public void switchToOfflineMode() {
-		crypt = null;
-		loggedIn = false;
-		offlinemode  = true;
-		
+		sendToIOUnit(splittedString[1]);
+
 	}
 
 }

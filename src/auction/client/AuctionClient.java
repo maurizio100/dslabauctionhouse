@@ -3,10 +3,9 @@ package auction.client;
 import java.io.IOException;
 import java.net.UnknownHostException;
 
-import auction.communication.LocalMessageController;
-import auction.communication.NetworkMessageForwardingController;
-import auction.exceptions.PortRangeException;
-import auction.io.IOUnit;
+import auction.global.communication.LocalMessageController;
+import auction.global.exceptions.PortRangeException;
+import auction.global.io.IOUnit;
 
 public class AuctionClient {
 
@@ -42,15 +41,12 @@ public class AuctionClient {
 
 			/* Initialization of all classes */
 			/*controllers for communication between all Client-objects*/
-			LocalMessageController lmc = new LocalMessageController();
-			NetworkMessageForwardingController nmfc = new NetworkMessageForwardingController();
+			LocalMessageController lmc = new LocalMessageController();	
+			NetworkMessageForwardingController nmfc = new NetworkMessageForwardingController(host, tcpPort);
 			
-			model = new ClientModel(lmc, nmfc, udpPort, pathToPublicKey, pathToPrivateKey);
-			IOUnit iounit = new IOUnit( lmc, model, model, WELCOME );
-			
-			/*-----------Network components-----------------------------*/
-			ClientTCPPort socketPort = new ClientTCPPort( host, tcpPort, nmfc, lmc, model );
-//			ClientUDPPort updPort = new ClientUDPPort( lmc, udpPort, model);
+			model = new ClientModel(lmc, udpPort, nmfc, pathToPublicKey, pathToPrivateKey);
+			new IOUnit( lmc, model, model, WELCOME );
+						
 			
 		}catch(NumberFormatException nfe){
 			System.err.println("ClientMain: " +
@@ -59,10 +55,8 @@ public class AuctionClient {
 			System.err.println(e.getMessage());
 		} catch (UnknownHostException e) {
 			System.err.println("Unkown Host! Program Shuts down.");
-			model.sendExit();
 		} catch (IOException e1){
 			System.err.println("Server is not reachable! Program Shuts down.");
-			model.sendExit();
 		}
 	}
 }

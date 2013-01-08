@@ -14,44 +14,45 @@ import javax.crypto.SecretKey;
 
 import org.bouncycastle.util.encoders.Base64;
 
-import auction.client.interfaces.IClientCommandReceiver;
-import auction.commands.AuctionEndedCommand;
-import auction.commands.BidAuctionCommand;
-import auction.commands.CommandRepository;
-import auction.commands.ConfirmGroupBidCommand;
-import auction.commands.CreateAuctionCommand;
-import auction.commands.ExitCommand;
-import auction.commands.GroupBidAuctionCommand;
-import auction.commands.ICommand;
-import auction.commands.ICommandReceiver;
-import auction.commands.ICommandSender;
-import auction.commands.ListCommand;
-import auction.commands.LoginCommand;
-import auction.commands.LogoutCommand;
-import auction.commands.OverbidCommand;
-import auction.communication.interfaces.IExitObserver;
-import auction.communication.interfaces.IExitSender;
-import auction.communication.interfaces.IFeedbackObserver;
-import auction.communication.interfaces.IMessageReceiver;
-import auction.communication.interfaces.IMessageSender;
-import auction.crypt.AESCrypt;
-import auction.crypt.HMAC;
-import auction.crypt.ICrypt;
-import auction.crypt.RSACrypt;
-import auction.exceptions.BidTooLowException;
-import auction.exceptions.BidderNotAvailableException;
-import auction.exceptions.BidderSameConfirmException;
-import auction.exceptions.ProductNotAvailableException;
-import auction.interfaces.IAuctionCommandReceiverServer;
-import auction.io.IOInstructionReceiver;
-import auction.io.IOInstructionSender;
-import auction.io.IOUnit;
+import auction.client.commands.AuctionEndedCommand;
+import auction.client.commands.OverbidCommand;
+import auction.client.interfaces.ICommandReceiverClient;
+import auction.global.commands.BidAuctionCommand;
+import auction.global.commands.CommandRepository;
+import auction.global.commands.ConfirmGroupBidCommand;
+import auction.global.commands.CreateAuctionCommand;
+import auction.global.commands.ExitCommand;
+import auction.global.commands.GroupBidAuctionCommand;
+import auction.global.commands.ListCommand;
+import auction.global.commands.LoginCommand;
+import auction.global.commands.LogoutCommand;
+import auction.global.config.ServerConfig;
+import auction.global.crypt.AESCrypt;
+import auction.global.crypt.HMAC;
+import auction.global.crypt.RSACrypt;
+import auction.global.exceptions.BidTooLowException;
+import auction.global.exceptions.BidderNotAvailableException;
+import auction.global.exceptions.BidderSameConfirmException;
+import auction.global.exceptions.ProductNotAvailableException;
+import auction.global.interfaces.ICommand;
+import auction.global.interfaces.ICommandReceiver;
+import auction.global.interfaces.ICommandSender;
+import auction.global.interfaces.ICrypt;
+import auction.global.interfaces.IExitObserver;
+import auction.global.interfaces.IExitSender;
+import auction.global.interfaces.IFeedbackObserver;
+import auction.global.interfaces.ILocalMessageReceiver;
+import auction.global.interfaces.ILocalMessageSender;
+import auction.global.io.IOInstructionReceiver;
+import auction.global.io.IOInstructionSender;
+import auction.global.io.IOUnit;
+import auction.interfaces.ICommandReceiverClient;
 import auction.server.interfaces.IAuctionOperator;
 import auction.server.interfaces.IClientOperator;
 import auction.server.interfaces.IClientThread;
 
 public class ServerModel 
-implements IExitSender, IAuctionCommandReceiverServer, IClientCommandReceiver, ICommandReceiver,IMessageReceiver, IOInstructionSender, IFeedbackObserver{
+implements IExitSender, ICommandReceiverClient, ICommandReceiverClient, ICommandReceiver,ILocalMessageReceiver, IOInstructionSender, IFeedbackObserver{
 
 	private ArrayList<IExitObserver> eObservers = null;
 	private IOInstructionReceiver ioReceiver = null;
@@ -94,7 +95,7 @@ implements IExitSender, IAuctionCommandReceiverServer, IClientCommandReceiver, I
 	};
 
 	/* ---- Constructors ---------------------------- */
-	public ServerModel(IMessageSender lmc,
+	public ServerModel(ILocalMessageSender lmc,
 			ICommandSender cc, IClientOperator clientManager) {
 
 		eObservers = new ArrayList<IExitObserver>();		
@@ -110,7 +111,7 @@ implements IExitSender, IAuctionCommandReceiverServer, IClientCommandReceiver, I
 		timer = new Timer();
 	}
 
-	public ServerModel(IMessageSender lmc,
+	public ServerModel(ILocalMessageSender lmc,
 			ICommandSender cc, IClientOperator clientManager, String pathToPublicKey,PrivateKey privateKey, String pathToDir) {
 
 		this(lmc, cc, clientManager);
@@ -125,7 +126,7 @@ implements IExitSender, IAuctionCommandReceiverServer, IClientCommandReceiver, I
 
 	/* -------------- Message parsing and processing -------------------- */
 	@Override
-	public void receiveMessage(String message) {
+	public void receiveLocalMessage(String message) {
 		if(message.isEmpty()){
 			this.sendToIOUnit(ServerConfig.SHUTDOWNNOTIFICATION);
 			this.invokeShutdown();
@@ -488,7 +489,7 @@ implements IExitSender, IAuctionCommandReceiverServer, IClientCommandReceiver, I
 		}
 	}
 
-	private void sendToIOUnit( String message ){ ioReceiver.receiveInstruction(message); }
+	private void sendToIOUnit( String message ){ ioReceiver.processInstruction(message); }
 
 	@Override
 	public void registerIOReceiver(IOInstructionReceiver receiver) { ioReceiver = receiver; }

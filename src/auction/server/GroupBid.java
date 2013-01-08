@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.TimerTask;
 
+import auction.global.config.ServerConfig;
+
 public class GroupBid extends TimerTask{
 
 	private int auctionNumber;

@@ -6,10 +6,10 @@ import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-import auction.communication.interfaces.IExitObserver;
-import auction.communication.interfaces.IExitSender;
-import auction.communication.interfaces.IMessageReceiver;
-import auction.exceptions.PortRangeException;
+import auction.global.exceptions.PortRangeException;
+import auction.global.interfaces.IExitObserver;
+import auction.global.interfaces.IExitSender;
+import auction.global.interfaces.ILocalMessageReceiver;
 
 public class ServerTCPPort extends Thread implements IExitObserver{
 
@@ -19,9 +19,9 @@ public class ServerTCPPort extends Thread implements IExitObserver{
 	private int port = -1;
 	private ServerSocket s = null;
 	private ClientManager clientManager = null;
-	private IMessageReceiver localMessenger = null;
+	private ILocalMessageReceiver localMessenger = null;
 	
-	public ServerTCPPort( int port, ClientManager cm, IMessageReceiver rcv, IExitSender ex) throws PortRangeException{
+	public ServerTCPPort( int port, ClientManager cm, ILocalMessageReceiver rcv, IExitSender ex) throws PortRangeException{
 		this.port = port;
 		clientManager = cm;
 		ex.registerExitObserver(this);
@@ -39,13 +39,13 @@ public class ServerTCPPort extends Thread implements IExitObserver{
 				clientSocket = null;
 			}
 		}catch(IOException e){
-			localMessenger.receiveMessage("Shutting down ServerTCPPort due to an IOError");
+			localMessenger.receiveLocalMessage("Shutting down ServerTCPPort due to an IOError");
 		}
 	}
 
 	@Override
 	public void exit() {
-		localMessenger.receiveMessage("Shutting down ServerTCPPort.");
+		localMessenger.receiveLocalMessage("Shutting down ServerTCPPort.");
 		try { s.close(); } catch (IOException e) {}
 	}
 }

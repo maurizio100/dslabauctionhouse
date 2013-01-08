@@ -1,6 +1,6 @@
 package auction.server.interfaces;
 
-import auction.exceptions.ProductNotAvailableException;
+import auction.global.exceptions.ProductNotAvailableException;
 
 public interface IAuctionOperator {
 

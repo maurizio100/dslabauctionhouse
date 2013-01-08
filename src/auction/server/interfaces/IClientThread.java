@@ -2,7 +2,7 @@ package auction.server.interfaces;
 
 import java.net.InetAddress;
 
-import auction.communication.interfaces.IFeedbackObserver;
+import auction.global.interfaces.IFeedbackObserver;
 
 
 public interface IClientThread extends IFeedbackObserver{

@@ -7,32 +7,26 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
-import auction.communication.interfaces.IExitObserver;
-import auction.communication.interfaces.IExitSender;
-import auction.communication.interfaces.IMessageReceiver;
-import auction.communication.interfaces.IMessageSender;
-import auction.exceptions.ServerDisconnectedException;
+import auction.client.interfaces.IClientMessageForwarder;
+import auction.client.interfaces.INetworkSocket;
+import auction.global.exceptions.ServerDisconnectedException;
+import auction.global.interfaces.IExitObserver;
+import auction.global.interfaces.IExitSender;
+import auction.global.interfaces.ILocalMessageReceiver;
+import auction.global.interfaces.ILocalMessageSender;
 
-public class ClientTCPPort extends Thread implements IMessageReceiver, IExitObserver{
+public class ClientTCPPort extends Thread 
+implements INetworkSocket{
 
-	private IMessageSender nwMessageSender = null;
-	private IMessageReceiver localMessenger = null;
 	private Socket serverConnection = null;
 	private PrintWriter out = null;
 	private BufferedReader in = null;
-	private String host;
-	private int port;
+	private IClientMessageForwarder nwcontroller = null;
 
-	public ClientTCPPort(String host, int port, IMessageSender snd, IMessageReceiver rcv, IExitSender e) 
+	public ClientTCPPort(String host, int port, IClientMessageForwarder nwcontroller ) 
 			throws UnknownHostException, IOException{
 
-		nwMessageSender = snd;
-		nwMessageSender.registerMessageReceiver(this);
-		e.registerExitObserver(this);
-
-		localMessenger = rcv;
-		this.host = host;
-		this.port = port;
+		this.nwcontroller = nwcontroller;
 
 		serverConnection = new Socket(host,port);	
 		out = new PrintWriter(serverConnection.getOutputStream(), true);
@@ -49,17 +43,17 @@ public class ClientTCPPort extends Thread implements IMessageReceiver, IExitObse
 			while(true){
 
 				if( (inString = in.readLine()) != null ){
-					sendMessageToLocalMessenger(inString);
+					sendMessageToClient(inString);
 				}
 				if(inString == null) throw new ServerDisconnectedException();
 			}
 		}catch( IOException e ){
-			sendMessageToLocalMessenger("Shutting down ClientTCP - Socket inputstream closed.");
+			sendMessageToClient("Shutting down ClientTCP - Socket inputstream closed.");
 		}catch( ServerDisconnectedException sde){
-//			sendMessageToLocalMessenger("Push ENTER to completely shutdown the Program.");
-//			localMessenger.invokeShutdown();
-			localMessenger.switchToOfflineMode();
-			sendMessageToLocalMessenger("The Server is not online anymore. Client is going to shutdown now.");
+			//			sendMessageToLocalMessenger("Push ENTER to completely shutdown the Program.");
+			//			localMessenger.invokeShutdown();
+			//			localMessenger.switchToOfflineMode();
+			sendMessageToClient("The Server is not online anymore. Client is going to shutdown now.");
 		}
 
 	}
@@ -68,17 +62,17 @@ public class ClientTCPPort extends Thread implements IMessageReceiver, IExitObse
 		out.println(message);
 	}
 
-	private void sendMessageToLocalMessenger(String message){
-		localMessenger.receiveMessage(message);
+	private void sendMessageToClient(String message){
+		nwcontroller.sendMessageToClient(message);
 	}
 
 	@Override
-	public void receiveMessage(String message){
+	public void sendMessageToNetwork(String message){
 		sendMessageToServer(message);
 	}
 
 	@Override
-	public void exit() {
+	public void shutDownSocket() {
 		try{		
 			/*	sendMessageToLocalMessenger("Shutting down ClientTCP");*/
 			serverConnection.close();
@@ -90,16 +84,5 @@ public class ClientTCPPort extends Thread implements IMessageReceiver, IExitObse
 				out.close();
 			}
 		}
-	}
-
-	@Override
-	public void invokeShutdown() {
-		this.exit();
-	}
-
-	@Override
-	public void switchToOfflineMode() {
-		// TODO Auto-generated method stub
-		
 	}
 }

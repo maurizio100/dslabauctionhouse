@@ -3,11 +3,11 @@ package auction.server;
 import java.util.HashMap;
 import java.util.Timer;
 
-import auction.commands.ICommandReceiver;
-import auction.communication.interfaces.IExitObserver;
-import auction.communication.interfaces.IExitSender;
-import auction.communication.interfaces.IFeedbackObserver;
-import auction.exceptions.ProductNotAvailableException;
+import auction.global.exceptions.ProductNotAvailableException;
+import auction.global.interfaces.ICommandReceiver;
+import auction.global.interfaces.IExitObserver;
+import auction.global.interfaces.IExitSender;
+import auction.global.interfaces.IFeedbackObserver;
 import auction.interfaces.IAuctionEndReceiver;
 import auction.server.interfaces.IAuctionOperator;
 import auction.server.interfaces.IClientThread;
