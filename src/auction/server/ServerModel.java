@@ -540,6 +540,6 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 	private void invokeShutdown() { timer.cancel();  this.sendExit(); }
 
 	@Override
-	public void exit() { clientManager.shutDownClient(servedClient); }
+	public void exit() { if( servedClient.isLoggedIn() ) { this.logout(); } clientManager.shutDownClient(servedClient); }
 
 }

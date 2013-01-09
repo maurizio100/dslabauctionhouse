@@ -55,7 +55,7 @@ public class Client implements Runnable, IClientThread{
 				}
 			}
 		}catch(IOException e){
-//			this.sendToLocalMessenger("There was an IOError by reading from Socket.");
+			this.sendToLocalMessenger("Client at Host: " + host + " not connected anymore.");
 		}
 	}
 
@@ -70,11 +70,6 @@ public class Client implements Runnable, IClientThread{
 	@Override
 	public void exit(){
 		try{
-//			this.sendToLocalMessenger("Client at Host: " + host + " disconnected and logged out.");
-/*			if(loggedIn){
-				sendToCommandReceiver(CommandConfig.COMMANDNOTIFIER + CommandConfig.LOGOUT);		
-			}
-*/
 			activeSocket.close();
 		//	Thread.currentThread().interrupt();
 		}catch( IOException e){}
@@ -114,7 +109,7 @@ public class Client implements Runnable, IClientThread{
 	@Override
 	public void setLogout(){
 		this.loggedIn = false;
-		this.sendToLocalMessenger("Client at Host: " + host + " disconnected and logged out.");
+		this.sendToLocalMessenger("Client " + this.clientName + " logged out.");
 	}
 
 	@Override

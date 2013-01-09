@@ -82,22 +82,27 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 	/*-----------Command Management-------------------*/
 	private String currentCommand = "";
 	private String[] splittedString;
-	private CommandRepository commandRepository = null;
-	private ICommand[] availableCommands = {
+	
+	private CommandRepository clientCommandRepository = null;
+	private ICommand[] clientCommands = {
 			new BidAuctionCommand(this),
 			new CreateAuctionCommand(this),
 			new ExitCommand(this),
 			new ListCommand(this),
 			new LoginCommand(this),
 			new LogoutCommand(this),
+			new GroupBidAuctionCommand(this),
+			new ConfirmGroupBidCommand(this)
+	};
+	
+	private CommandRepository internalCommandRepository = null;
+	private ICommand[] internalCommands = {
 			new OverbidCommand(this),
 			new AuctionEndedCommand(this),
 			new OkCommand(this),
-			new GroupBidAuctionCommand(this),
 			new RejectGroupBidCommand(this),
-			new ConfirmGroupBidCommand(this),
 			new NotifyConfirmGroupBidCommand(this),
-			new LoginRejectCommand(this)
+			new LoginRejectCommand(this)			
 	};
 
 	private boolean offlinemode = false;
@@ -114,7 +119,9 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 
 		eObservers = new ArrayList<IExitObserver>();
 
-		commandRepository = new CommandRepository(availableCommands);
+		clientCommandRepository = new CommandRepository(clientCommands);
+		internalCommandRepository = new CommandRepository(internalCommands);
+		
 		this.udpPort = udpPort;
 	}
 
@@ -162,11 +169,11 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 		return message.charAt(0) == CommandConfig.COMMANDNOTIFIER;
 	}
 
-	private ICommand parseCommand(String command) throws NotACommandException{
+	private ICommand parseCommand(String command, CommandRepository repository) throws NotACommandException{
 		splittedString = command.split(CommandConfig.ARGSEPARATOR);
 		String commandString = splittedString[CommandConfig.POSCOMMAND];
 
-		ICommand c = commandRepository.checkCommand( commandString );
+		ICommand c = repository.checkCommand( commandString );
 		if ( c == null ) 
 			throw new NotACommandException(GlobalConfig.INFOSTRING + " " + commandString + " is not a command!");
 
@@ -180,7 +187,7 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 				/* decrypt messages */
 				message = crypt.decodeMessage(message);
 				if( this.isCommand(message) ){
-					c = parseCommand(message);
+					c = parseCommand(message, internalCommandRepository);
 					currentCommand = message;
 					c.execute();
 				}else{
@@ -213,7 +220,7 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 		try{
 			ICommand c = null;
 			if( this.isCommand(message) ){
-				c = parseCommand(message);
+				c = parseCommand(message, clientCommandRepository);
 				currentCommand = message;
 				c.execute();
 				currentCommand = null;
@@ -321,6 +328,7 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 
 	@Override
 	public void rejectLogin() {
+		//TODO HMAC check???
 		String rejectLoginMessage = splittedString[CommandConfig.POSLOGINREJECTMESSAGE];
 
 		splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR, CommandConfig.LOGINREJECTTOKENCOUNT);
@@ -406,10 +414,23 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 
 	@Override
 	public void rejectGroupBid() {
-		String rejectMessage = splittedString[CommandConfig.POSREJECTMESSAGE];
 		confirmationSent = false;
-		splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR, CommandConfig.REJECTEDTOKENCOUNT);
-		this.sendToIOUnit("Error at confirmation: " + rejectMessage );
+
+		splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR);
+		String HMAC = splittedString[splittedString.length-1];
+		String rejectMessage = ""; 
+		
+		int i = 1;
+		for( ; i < splittedString.length -2; i++ ){
+			rejectMessage += splittedString[i] + ' ';
+		}
+		rejectMessage += splittedString[i];
+		String content =CommandConfig.COMMANDNOTIFIER + CommandConfig.REJECTED + " " + rejectMessage;
+		if( checkHMAC(HMAC, content) ){
+			this.sendToIOUnit("Error at confirmation: " + rejectMessage );
+		}else{
+			this.sendToIOUnit(ClientConfig.HMACNOTEQUAL);
+		}
 	}
 
 	@Override
@@ -447,7 +468,7 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 	@Override
 	public void exit() {
 		if(loggedIn){
-			this.sendToNetwork(CommandConfig.COMMANDNOTIFIER + CommandConfig.LOGOUT);
+			this.sendToNetwork(currentCommand);
 			this.resetLogin();
 		}
 		nwcontrol.shutDownNetworkConnection();
