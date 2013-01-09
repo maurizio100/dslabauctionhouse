@@ -44,13 +44,18 @@ implements INetworkSocket{
 				if(inString == null) throw new ServerDisconnectedException();
 			}
 		}catch( IOException e ){
-			sendInfoMessageToClient("Shutting down ClientTCP - Socket inputstream closed.");
+			sendInfoMessageToClient("Socket inputstream closed. Logging out Client!");
+			sendLogoutSignal();
 		}catch( ServerDisconnectedException sde){
-			sendInfoMessageToClient("The Server is not online anymore. Client is going to shutdown now.");
+			sendInfoMessageToClient("The Server is not online anymore. Client is going to Log out!");
+			sendLogoutSignal();
 		}
-
 	}
 
+
+	private void sendLogoutSignal() {
+		nwcontroller.sendLogoutSignal();
+	}
 
 	private void sendMessageToServer(String message) {
 		out.println(message);
@@ -73,7 +78,6 @@ implements INetworkSocket{
 	@Override
 	public void shutDownSocket() {
 		try{		
-			/*	sendMessageToLocalMessenger("Shutting down ClientTCP");*/
 			serverConnection.close();
 
 		}catch(IOException e){}

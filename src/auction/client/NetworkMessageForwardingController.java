@@ -63,4 +63,9 @@ implements IClientMessageForwarder, INetworkControl
 		this.client.receiveNetworkStatusMessage( message );
 	}
 
+	@Override
+	public void sendLogoutSignal() {
+		this.client.receiveLogoutSignal();
+	}
+
 }

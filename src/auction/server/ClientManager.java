@@ -131,7 +131,10 @@ public class ClientManager implements IClientOperator, IExitObserver{
 	public void exit() {
 		this.sendToLocalMessenger("Shutting down Client Manager!");
 		for( IClientThread t : allClients){
-			t.exit();
+			if( t.isLoggedIn() ){
+				t.setLogout();
+				t.exit();
+			}
 		}
 		executorService.shutdown();
 	}

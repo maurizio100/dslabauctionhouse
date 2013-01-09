@@ -48,6 +48,10 @@ import auction.server.interfaces.IAuctionOperator;
 import auction.server.interfaces.IClientOperator;
 import auction.server.interfaces.IClientThread;
 
+import org.bouncycastle.openssl.PEMReader;
+import org.bouncycastle.openssl.PasswordFinder;
+import org.bouncycastle.util.encoders.Base64;
+
 public class ServerModel 
 implements IExitSender, IAuctionCommandReceiver, ICommandReceiver,
 ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
@@ -73,7 +77,7 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 	private GroupBidQueue queuedGroupBids = null; 
 
 	/* ---- Command variables ----------------------- */
-	private Client servedClient = null;
+	private IClientThread servedClient = null;
 
 	private CommandRepository commandRepository = null;
 	private String currentCommand = "";
@@ -141,48 +145,59 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 	
 	@Override
 	public void receiveAuctionNotification(String message, IClientThread client) {
-
+		this.sendFeedback(client, message);
 	}
 
 	private void parseNetworkMessage( String message, Client source ){
 
-		if(cryptuser.containsKey(source.getClientName())){
+		if( this.isCommand(message) ){
+			this.processCommand( message, source );
+		}else if(cryptuser.containsKey(source.getClientName())){
 			message = cryptuser.get(source.getClientName()).decodeMessage(message);			}
 		else{
 			message = crypt.decodeMessage(message);
 		}
 
 		if( this.isCommand(message) ){
-			currentCommand = message;
-			synchronized(servedClient){
-				servedClient = source;
-				parseCommand(message).execute();
-				servedClient = null;
-			}
-			currentCommand = null;
-
+			this.processCommand(message, source);		
 		}else{
-			checkClientServerChallenge(message.getBytes());
+			checkClientServerChallenge(message.getBytes(), source);
 		}
 	}
 
 
 	private void parseMessage(String message) {
 		if( this.isCommand(message) ){
-			currentCommand = message;
-			parseCommand(message).execute();
-			currentCommand = null;
+			this.processCommand(message, null);
 		}else{ 	this.sendToIOUnit(message); }
 	}
+
+
+	private boolean isCommand(String message) { return message.charAt(0) == CommandConfig.COMMANDNOTIFIER; }
 
 	private ICommand parseCommand(String command){
 		splittedString = command.split(CommandConfig.ARGSEPARATOR,2);
 		String extractedCommand = splittedString[CommandConfig.POSCOMMAND];
 		return commandRepository.checkCommand(extractedCommand);
 	}
-
-	private boolean isCommand(String message) { return message.charAt(0) == CommandConfig.COMMANDNOTIFIER; }
-
+	
+	private void processCommand( String message, IClientThread source ){
+		ICommand c = null;
+		currentCommand = message;
+		if ( source != null ){
+			servedClient = source;
+			synchronized(servedClient){
+				c = parseCommand(message);
+				if( c != null ){ c.execute(); }
+				servedClient = null;
+			}
+			currentCommand = null;
+		}else{
+			c = parseCommand(message);
+			if( c != null ){ c.execute(); }	
+		}
+	}
+	
 	private void sendGroupBidNotification(GroupBid groupBid) {
 		IClientThread groupBidder = groupBid.getGroupBidder();
 
@@ -259,14 +274,13 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 	public void logout() {
 		clientManager.logoffClient(servedClient);
 		cryptuser.remove(servedClient.getClientName());
-		this.sendFeedback(ServerConfig.LOGOUTNOTIFICATON);
 	}
 
-	private void checkClientServerChallenge(byte[] number){
+	private void checkClientServerChallenge(byte[] number, IClientThread source){
 
 		String n = new String(number);
-		String cn = new String(secureNumberUser.get(servedClient.getClientName()));
-		String client = servedClient.getClientName();
+		String cn = new String(secureNumberUser.get(source.getClientName()));
+		String client = source.getClientName();
 		
 		if(n.equals(cn)){
 			sendToIOUnit(client + " Logged in successfully!");		
@@ -282,7 +296,7 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 			
 			splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR, CommandConfig.CREATEAUCTIONTOKENCOUNT);
 			
-			int time = Integer.parseInt(splittedString[CommandConfig.POSAUCTIONTIME], CommandConfig.CREATEAUCTIONTOKENCOUNT);
+			int time = Integer.parseInt(splittedString[CommandConfig.POSAUCTIONTIME]);
 			String description = splittedString[CommandConfig.POSAUCTIONDESCRIPTION];
 			String client = servedClient.getClientName();
 
@@ -527,7 +541,5 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 
 	@Override
 	public void exit() { clientManager.shutDownClient(servedClient); }
-
-
 
 }

@@ -70,10 +70,11 @@ public class Client implements Runnable, IClientThread{
 	@Override
 	public void exit(){
 		try{
-			this.sendToLocalMessenger("Client at Host: " + host + " disconnected and logged out.");
-			if(loggedIn){
+//			this.sendToLocalMessenger("Client at Host: " + host + " disconnected and logged out.");
+/*			if(loggedIn){
 				sendToCommandReceiver(CommandConfig.COMMANDNOTIFIER + CommandConfig.LOGOUT);		
 			}
+*/
 			activeSocket.close();
 		//	Thread.currentThread().interrupt();
 		}catch( IOException e){}
@@ -113,6 +114,7 @@ public class Client implements Runnable, IClientThread{
 	@Override
 	public void setLogout(){
 		this.loggedIn = false;
+		this.sendToLocalMessenger("Client at Host: " + host + " disconnected and logged out.");
 	}
 
 	@Override

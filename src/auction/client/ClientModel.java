@@ -63,7 +63,6 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 
 	/*--------------Communication----------------------*/
 	private ILocalMessageSender localMessenger = null;
-	private ILocalMessageReceiver networkMessenger = null;
 	private INetworkControl nwcontrol = null;
 	private IOInstructionReceiver ioReceiver = null;
 	private ArrayList<IExitObserver> eObservers = null;
@@ -100,7 +99,7 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 			new NotifyConfirmGroupBidCommand(this),
 			new LoginRejectCommand(this)
 	};
-	
+
 	private boolean offlinemode = false;
 
 
@@ -143,7 +142,7 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 			sendToIOUnit(info);
 		}
 	}
-	
+
 	@Override
 	public void receiveNetworkStatusMessage(String message) {
 		if( !message.isEmpty() ){
@@ -166,11 +165,11 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 	private ICommand parseCommand(String command) throws NotACommandException{
 		splittedString = command.split(CommandConfig.ARGSEPARATOR);
 		String commandString = splittedString[CommandConfig.POSCOMMAND];
-		
+
 		ICommand c = commandRepository.checkCommand( commandString );
 		if ( c == null ) 
 			throw new NotACommandException(GlobalConfig.INFOSTRING + " " + commandString + " is not a command!");
-		
+
 		return c;
 	}
 
@@ -206,7 +205,7 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 						sendToIOUnit(message);
 					}
 				}					
-			}
+			}else{ sendToIOUnit(message); }
 		}catch( NotACommandException nace ){ sendToIOUnit(nace.getMessage()); }
 	}
 
@@ -301,7 +300,6 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 		}
 	}
 
-
 	@Override
 	public void logout() {
 		if( !loggedIn ){
@@ -318,8 +316,22 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 		crypt = null;
 		loggedIn = false;
 		username = null;		
+		this.sendToIOUnit( ClientConfig.LOGOUTSUCCESSFUL );
 	}
 
+	@Override
+	public void rejectLogin() {
+		String rejectLoginMessage = splittedString[CommandConfig.POSLOGINREJECTMESSAGE];
+
+		splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR, CommandConfig.LOGINREJECTTOKENCOUNT);
+		sendToIOUnit( rejectLoginMessage );
+		this.resetLogin();
+	}
+
+	@Override
+	public void receiveLogoutSignal() {
+		this.resetLogin();
+	}
 	/* ------------- Auction management ------------------------------ */
 	@Override
 	public void createAuction() {
@@ -413,7 +425,7 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 		{
 			message = crypt.encodeMessage(message);
 		}
-		networkMessenger.receiveLocalMessage(message);
+		nwcontrol.sendMessageToNetwork(message);
 	}
 
 	/*------------------------IO-Unit--------------------------------_*/
@@ -435,9 +447,10 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 	@Override
 	public void exit() {
 		if(loggedIn){
-			this.logout();
+			this.sendToNetwork(CommandConfig.COMMANDNOTIFIER + CommandConfig.LOGOUT);
 			this.resetLogin();
 		}
+		nwcontrol.shutDownNetworkConnection();
 		this.sendExit();
 	}
 
@@ -469,16 +482,6 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 		}
 
 		return false;
-	}
-
-	@Override
-	public void rejectLogin() {
-		String rejectLoginMessage = splittedString[CommandConfig.POSLOGINREJECTMESSAGE];
-
-		splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR, CommandConfig.LOGINREJECTTOKENCOUNT);
-		this.resetLogin();
-		sendToIOUnit( rejectLoginMessage );
-		
 	}
 
 
