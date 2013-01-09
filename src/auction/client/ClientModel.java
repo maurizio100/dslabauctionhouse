@@ -40,6 +40,8 @@ import auction.global.commands.GroupBidAuctionCommand;
 import auction.global.commands.ListCommand;
 import auction.global.commands.LoginCommand;
 import auction.global.commands.LogoutCommand;
+import auction.global.config.ClientConfig;
+import auction.global.config.CommandConfig;
 import auction.global.config.GlobalConfig;
 import auction.global.crypt.AESCrypt;
 import auction.global.crypt.HMAC;
@@ -98,6 +100,7 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 			new NotifyConfirmGroupBidCommand(this),
 			new LoginRejectCommand(this)
 	};
+	
 	private boolean offlinemode = false;
 
 
@@ -140,7 +143,13 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 			sendToIOUnit(info);
 		}
 	}
-
+	
+	@Override
+	public void receiveNetworkStatusMessage(String message) {
+		if( !message.isEmpty() ){
+			sendToIOUnit(message);
+		}
+	}
 
 	@Override
 	public void receiveLocalMessage(String message) {
@@ -151,14 +160,17 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 
 	private boolean isCommand(String message) {
 		if( message.length()  < 1 ) return false;
-		return message.charAt(0) == '!';
+		return message.charAt(0) == CommandConfig.COMMANDNOTIFIER;
 	}
 
 	private ICommand parseCommand(String command) throws NotACommandException{
-		splittedString = command.split(" ");
-		ICommand c = commandRepository.checkCommand(splittedString[0]);
-		if ( c == null ) throw new NotACommandException(splittedString[0] + " is not a command!");
-
+		splittedString = command.split(CommandConfig.ARGSEPARATOR);
+		String commandString = splittedString[CommandConfig.POSCOMMAND];
+		
+		ICommand c = commandRepository.checkCommand( commandString );
+		if ( c == null ) 
+			throw new NotACommandException(GlobalConfig.INFOSTRING + " " + commandString + " is not a command!");
+		
 		return c;
 	}
 
@@ -175,19 +187,19 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 				}else{
 					if(loggedIn){
 						String content = "";
-						splittedString = message.split(" ");
+						splittedString = message.split(CommandConfig.ARGSEPARATOR);
 						for(int i = 0; i<splittedString.length-1; i++){
 							content += splittedString[i];
 							if(i < splittedString.length-2 )
 							{
-								content += " ";
+								content += CommandConfig.ARGSEPARATOR;
 							}
 						}
 
 						if(checkHMAC(splittedString[(splittedString.length-1)], content)){
 							sendToIOUnit(content);
 						}else{
-							sendToIOUnit("Error HMAC is not equal");
+							sendToIOUnit(ClientConfig.HMACNOTEQUAL);
 						}
 
 					}else{
@@ -195,9 +207,7 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 					}
 				}					
 			}
-		}catch( NotACommandException nace ){
-			sendToIOUnit(nace.getMessage());
-		}
+		}catch( NotACommandException nace ){ sendToIOUnit(nace.getMessage()); }
 	}
 
 	private void parseLocalMessage(String message) {
@@ -210,10 +220,7 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 				currentCommand = null;
 			}
 
-		}catch( NotACommandException nace ){
-			sendToIOUnit(nace.getMessage());
-		}
-
+		}catch( NotACommandException nace ){ sendToIOUnit(nace.getMessage()); }
 	}
 
 	private void sendSyntaxError( String command, String correctSyntax){
@@ -227,19 +234,20 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 	@Override
 	public void login() {
 		if( loggedIn ){
-			this.sendToIOUnit("You are still logged in!");
+			this.sendToIOUnit(ClientConfig.STILLLOGGEDIN);
 			return;
 		}
 
 		if(splittedString.length != 2){ 
-			this.sendSyntaxError(splittedString[0], "!login <username>");
+			this.sendSyntaxError(splittedString[CommandConfig.POSCOMMAND], CommandConfig.COMMANDNOTIFIER + CommandConfig.LOGIN + " <username>");
 			return;
 		}
 
 		/* password request for private key */
 		PEMReader in;
 		try {
-			String pathPrivateKey = pathToPrivateKey + splittedString[1]+".pem";
+			String clientName = splittedString[CommandConfig.POSCLIENTNAME];
+			String pathPrivateKey = pathToPrivateKey + clientName + GlobalConfig.PRIVATEKEYPOSTFIX;
 			in = new PEMReader(new FileReader(pathPrivateKey), new PasswordFinder() {
 				@Override
 				public char[] getPassword() {
@@ -253,7 +261,7 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 			crypt = new RSACrypt(pathToPublicKey, privateKey);
 
 			String secnum = new String(secureNumber);
-			username = splittedString[1].toLowerCase();
+			username = clientName.toLowerCase();
 			this.sendToNetwork(currentCommand + " " + udpPort + " " + secnum);
 
 		} catch (FileNotFoundException e) {
@@ -267,8 +275,8 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 
 	@Override
 	public void ok() {
-		splittedString = currentCommand.split(" ");
-		byte[] clientchallenge = splittedString[1].getBytes();
+		splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR);
+		byte[] clientchallenge = splittedString[CommandConfig.POSCLIENTCHALLENGE].getBytes();
 
 		String c = new String(clientchallenge); 
 		String s = new String(secureNumber);
@@ -276,20 +284,19 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 		if(s.equals(c))
 		{
 
-			byte[] key = Base64.decode(splittedString[3].getBytes());
-			byte[] iv = Base64.decode(splittedString[4].getBytes());
+			byte[] key = Base64.decode(splittedString[CommandConfig.POSSECRETKEY].getBytes());
+			byte[] iv = Base64.decode(splittedString[CommandConfig.POSIVPARAMETER].getBytes());
 
 			Key secretkey = new SecretKeySpec(key, "AES");
 			crypt = new AESCrypt(secretkey, iv);
 
-			this.sendToNetwork(splittedString[2]);
-			this.sendToIOUnit("Login Successful");
+			this.sendToNetwork(splittedString[CommandConfig.POSSERVERCHALLENGE]);
+			this.sendToIOUnit(ClientConfig.LOGINSUCCESSFUL);
 			loggedIn = true;
 
 		}
-		else
-		{
-			this.sendToIOUnit("Login Failed!");
+		else{
+			this.sendToIOUnit(ClientConfig.LOGINFAILED);
 			username = null;
 		}
 	}
@@ -298,49 +305,44 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 	@Override
 	public void logout() {
 		if( !loggedIn ){
-			this.sendToIOUnit("You are still logged out!");
-			return;
+			this.sendToIOUnit(ClientConfig.STILLLOGGEDOUT);
+		}else if(splittedString.length != 1){
+			this.sendSyntaxError(splittedString[CommandConfig.POSCOMMAND], CommandConfig.COMMANDNOTIFIER + CommandConfig.LOGOUT);
+		}else {
+			this.sendToNetwork(currentCommand);
+			this.resetLogin();
 		}
-		if(splittedString.length != 1){
-			this.sendSyntaxError(splittedString[0], "!logout");
-			return;
-		}
+	}
+
+	private void resetLogin(){
 		crypt = null;
-		this.sendToNetwork(currentCommand);
 		loggedIn = false;
-		username = null;
+		username = null;		
 	}
 
 	/* ------------- Auction management ------------------------------ */
 	@Override
 	public void createAuction() {
 		if( !loggedIn ){
-			this.sendToIOUnit("Auction cant be created - You are not Logged in!");
-			return;
+			this.sendToIOUnit(ClientConfig.CREATENOTLOGGEDIN);
+		}else{
+			splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR, CommandConfig.CREATEAUCTIONTOKENCOUNT);
+			if(splittedString.length != CommandConfig.CREATEAUCTIONTOKENCOUNT){
+				this.sendSyntaxError(splittedString[CommandConfig.COMMANDNOTIFIER], CommandConfig.COMMANDNOTIFIER + CommandConfig.CREATEAUCTION + " <duration> <description>");
+			}else{ this.sendToNetwork(currentCommand);	}
 		}
-
-		splittedString = currentCommand.split(" ", 3);
-		if(splittedString.length != 3){
-			this.sendSyntaxError(splittedString[0], "!create <duration> <description>");
-			return;
-		}
-
-		this.sendToNetwork(currentCommand);	
 	}
 
 	@Override
 	public void bidForAuction() {
 		if( !loggedIn ){
-			this.sendToIOUnit("Auction cant be created - You are not Logged in!");
-			return;
+			this.sendToIOUnit(ClientConfig.BIDNOTLOGGEDIN);
+		}else{
+			splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR, CommandConfig.BIDAUCTIONTOKENCOUNT);
+			if( splittedString.length != CommandConfig.BIDAUCTIONTOKENCOUNT ){
+				this.sendSyntaxError(splittedString[CommandConfig.POSCOMMAND], CommandConfig.COMMANDNOTIFIER + CommandConfig.BID + " <auction-id> <amount>");
+			}else{ this.sendToNetwork(currentCommand);}
 		}
-		splittedString = currentCommand.split(" ", 3);
-		if( splittedString.length != 3 ){
-			this.sendSyntaxError(splittedString[0], "bid <auction-id> <amount>");
-			return;
-		}
-
-		this.sendToNetwork(currentCommand);
 	}
 
 	@Override
@@ -348,21 +350,20 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 		this.sendToNetwork(currentCommand);
 	}
 
-
 	@Override
 	public void overbid() {
-		splittedString = currentCommand.split(" ", 2);
-		String message = "You have been overbid on '" + splittedString[1] + "'";
+		splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR, CommandConfig.OVERBIDTOKENCOUNT);
+		String message = "You have been overbid on '" + splittedString[CommandConfig.POSOVERBIDAUCTION] + "'";
 		this.sendToIOUnit(message);
 
 	}
 
 	@Override
 	public void endAuction() {
-		splittedString = currentCommand.split(" ", 4 );
-		String winner = splittedString[1];
-		String price = splittedString[2];
-		String description = splittedString[3];
+		splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR, CommandConfig.AUCTIONENDEDTOKENCOUNT );
+		String winner = splittedString[CommandConfig.POSAUCTIONWINNER];
+		String price = splittedString[CommandConfig.POSAUCTIONPRICE];
+		String description = splittedString[CommandConfig.POSAUCTIONENDDESCRIPTION];
 
 		String message = "The auction " + description + " has ended. " + winner + " won with " + price + "."; 
 
@@ -374,39 +375,36 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 	@Override
 	public void confirmGroupBid() {
 		if( !loggedIn ){
-			this.sendToIOUnit("Auction cant be created - You are not Logged in!");
-			return;
-		}
-		splittedString = currentCommand.split(" ", 4);
-		if( splittedString.length != 4 ){
-			this.sendSyntaxError(splittedString[0], "confirm <auction-id> <bid> <Username>");
-			return;
-		}
-
-		this.sendToNetwork(currentCommand);
-		confirmationSent = true;
-		while(confirmationSent){
-			try {
-				Thread.sleep(0);
-			} catch (InterruptedException e) {
-
+			this.sendToIOUnit(ClientConfig.CONFIRMLOGGEDOUT);
+		}else{
+			splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR, CommandConfig.CONFIRMTOKENCOUNT);
+			if( splittedString.length != CommandConfig.CONFIRMTOKENCOUNT ){
+				this.sendSyntaxError(splittedString[CommandConfig.POSCOMMAND], CommandConfig.COMMANDNOTIFIER + CommandConfig.CONFIRM + " <auction-id> <bid> <Username>");
+			}else{
+				this.sendToNetwork(currentCommand);
+				confirmationSent = true;
+				while(confirmationSent){
+					try {
+						Thread.sleep(0);
+					} catch (InterruptedException e) {}
+				}
 			}
-		}	
+		}
 	}
 
 	@Override
 	public void rejectGroupBid() {
+		String rejectMessage = splittedString[CommandConfig.POSREJECTMESSAGE];
 		confirmationSent = false;
-		splittedString = currentCommand.split(" ", 3);
-		this.sendToIOUnit("Error at confirmation: " + splittedString[1] );
+		splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR, CommandConfig.REJECTEDTOKENCOUNT);
+		this.sendToIOUnit("Error at confirmation: " + rejectMessage );
 	}
 
 	@Override
 	public void notifyConfirmed() {
 		confirmationSent = false;
-		this.sendToIOUnit("Groupbid confirmed.");
+		this.sendToIOUnit(ClientConfig.GROUPBIDCONFIRMED);
 	}
-
 
 	/*------------------- Network Messaging --------------------*/
 	private void sendToNetwork(String message){
@@ -436,11 +434,9 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 
 	@Override
 	public void exit() {
-
 		if(loggedIn){
 			this.logout();
-			loggedIn = false;
-			username = null;
+			this.resetLogin();
 		}
 		this.sendExit();
 	}
@@ -452,7 +448,6 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 			if( eo instanceof IOUnit ){ ioUnit = eo; }else{ eo.exit(); }
 		}	
 		ioUnit.exit();
-
 	}
 
 	private boolean checkHMAC(String hash, String content) {
@@ -478,13 +473,13 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 
 	@Override
 	public void rejectLogin() {
-		splittedString = currentCommand.split(" ", 2);
-		crypt = null;
-		username = null;
-		loggedIn = false;
+		String rejectLoginMessage = splittedString[CommandConfig.POSLOGINREJECTMESSAGE];
 
-		sendToIOUnit(splittedString[1]);
-
+		splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR, CommandConfig.LOGINREJECTTOKENCOUNT);
+		this.resetLogin();
+		sendToIOUnit( rejectLoginMessage );
+		
 	}
+
 
 }

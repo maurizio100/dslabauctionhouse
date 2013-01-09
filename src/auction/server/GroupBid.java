@@ -5,25 +5,26 @@ import java.util.Date;
 import java.util.TimerTask;
 
 import auction.global.config.ServerConfig;
+import auction.server.interfaces.IClientThread;
 
 public class GroupBid extends TimerTask{
 
 	private int auctionNumber;
 	private double bid;
-	private Client groupBidder;
-	private ArrayList<Client> confirmClients;
+	private IClientThread groupBidder;
+	private ArrayList<IClientThread> confirmClients;
 	private ServerModel serverModel;
 	private long startTime = 0;
 
-	public GroupBid(int auctionNumber, double bid, Client servedClient, ServerModel serverModel) {
+	public GroupBid(int auctionNumber, double bid, IClientThread servedClient, ServerModel serverModel) {
 		this.auctionNumber = auctionNumber;
 		this.bid = bid;
 		this.groupBidder = servedClient;	
-		confirmClients = new ArrayList<Client>();
+		confirmClients = new ArrayList<IClientThread>();
 		this.serverModel = serverModel;
 	}
 
-	public int addConfirmClient( Client confClient ){
+	public int addConfirmClient( IClientThread confClient ){
 		if( confirmClients.isEmpty() ){
 			startTime = new Date().getTime();
 		}
@@ -32,7 +33,7 @@ public class GroupBid extends TimerTask{
 		return confirmClients.size();
 	}
 
-	public Client getGroupBidder() {
+	public IClientThread getGroupBidder() {
 		return groupBidder;
 	}
 
@@ -54,7 +55,7 @@ public class GroupBid extends TimerTask{
 		}
 	}
 
-	public ArrayList<Client> getConfirmClients(){
+	public ArrayList<IClientThread> getConfirmClients(){
 		return confirmClients;
 	}
 

@@ -58,5 +58,9 @@ implements IClientMessageForwarder, INetworkControl
 		
 	}
 
+	@Override
+	public void sendNetworkStatusMessageToClient(String message) {
+		this.client.receiveNetworkStatusMessage( message );
+	}
 
 }

@@ -44,7 +44,7 @@ public class ClientManager implements IClientOperator, IExitObserver{
 			executorService.execute(c);
 			allClients.add(c);
 		}catch(IOException e){
-			localMessenger.receiveLocalMessage("Client couldnt be initialized.");
+			sendToLocalMessenger("Client couldnt be initialized.");
 		}
 	}
 
@@ -103,7 +103,6 @@ public class ClientManager implements IClientOperator, IExitObserver{
 	}
 
 	private void addNotification(String receiver, String notification){
-		
 		queuedNotifications.get(receiver).add(notification);
 	}
 
@@ -131,18 +130,16 @@ public class ClientManager implements IClientOperator, IExitObserver{
 	@Override
 	public void exit() {
 		this.sendToLocalMessenger("Shutting down Client Manager!");
-//		for( IClientThread t : allClients){
-//			t.exit();
-//		}
+		for( IClientThread t : allClients){
+			t.exit();
+		}
 		executorService.shutdown();
 	}
 
-	@Override
+	/*@Override
 	public void sendGroupBidNotification(GroupBid gb) {
 		IClientThread groupBidder = gb.getGroupBidder();
-		
-		
-	}
+	}*/
 
 	@Override
 	public void sendFeedback(IClientThread c, String feedback) {

@@ -1,5 +1,6 @@
 package auction.global.commands;
 
+import auction.global.config.CommandConfig;
 import auction.global.interfaces.IAuctionCommandReceiver;
 import auction.global.interfaces.ICommand;
 
@@ -18,7 +19,7 @@ public class ListCommand implements ICommand {
 
 	@Override
 	public String getName() {
-		return "list";
+		return CommandConfig.LIST;
 	}
 
 }

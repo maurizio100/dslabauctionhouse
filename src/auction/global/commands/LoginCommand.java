@@ -1,13 +1,14 @@
 package auction.global.commands;
 
-import auction.client.interfaces.ICommandReceiverClient;
+import auction.global.config.CommandConfig;
+import auction.global.interfaces.IAuctionCommandReceiver;
 import auction.global.interfaces.ICommand;
 
 public class LoginCommand implements ICommand {
 
-	private ICommandReceiverClient recepient = null;
+	private IAuctionCommandReceiver recepient = null;
 	
-	public LoginCommand(ICommandReceiverClient recepient) {
+	public LoginCommand(IAuctionCommandReceiver recepient) {
 		this.recepient = recepient;
 	}
 
@@ -18,7 +19,7 @@ public class LoginCommand implements ICommand {
 
 	@Override
 	public String getName() {
-		return "login";
+		return CommandConfig.LOGIN;
 	}
 
 }

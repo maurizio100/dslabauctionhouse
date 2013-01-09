@@ -1,8 +1,6 @@
 package auction.server;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 
@@ -13,8 +11,6 @@ import auction.global.interfaces.ILocalMessageReceiver;
 
 public class ServerTCPPort extends Thread implements IExitObserver{
 
-	private BufferedReader in = null;
-	private PrintWriter out = null;
 	private Socket clientSocket = null;
 	private int port = -1;
 	private ServerSocket s = null;
@@ -33,7 +29,7 @@ public class ServerTCPPort extends Thread implements IExitObserver{
 		try{
 		
 			s = new ServerSocket(port);
-			while( !this.isInterrupted() ){
+			while( true ){
 				clientSocket = s.accept();
 				clientManager.addNewClient( clientSocket );
 				clientSocket = null;

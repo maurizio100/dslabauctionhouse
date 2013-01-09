@@ -7,6 +7,7 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.Socket;
 
+import auction.global.config.CommandConfig;
 import auction.global.interfaces.ICommandReceiver;
 import auction.global.interfaces.ICrypt;
 import auction.global.interfaces.ILocalMessageReceiver;
@@ -37,9 +38,6 @@ public class Client implements Runnable, IClientThread{
 		output = new PrintWriter(activeSocket.getOutputStream(),true);
 	}
 
-	public void setLoginName(String client){
-		clientName = client;
-	}
 
 	public void receiveFeedback(String feedback){
 		output.println(feedback);
@@ -51,13 +49,13 @@ public class Client implements Runnable, IClientThread{
 		String inputString;
 
 		try{	
-			while(!Thread.interrupted()){
+			while( true ){
 				if( (inputString = input.readLine()) != null ){
 					this.sendToCommandReceiver(inputString);
 				}
 			}
 		}catch(IOException e){
-			this.sendToLocalMessenger("There was an IOError by reading from Socket.");
+//			this.sendToLocalMessenger("There was an IOError by reading from Socket.");
 		}
 	}
 
@@ -74,10 +72,10 @@ public class Client implements Runnable, IClientThread{
 		try{
 			this.sendToLocalMessenger("Client at Host: " + host + " disconnected and logged out.");
 			if(loggedIn){
-				sendToCommandReceiver("!logout");		
+				sendToCommandReceiver(CommandConfig.COMMANDNOTIFIER + CommandConfig.LOGOUT);		
 			}
 			activeSocket.close();
-			Thread.currentThread().interrupt();
+		//	Thread.currentThread().interrupt();
 		}catch( IOException e){}
 		finally{
 			try{ input.close(); }catch(IOException e){}
@@ -85,6 +83,11 @@ public class Client implements Runnable, IClientThread{
 		}
 	}
 
+
+	public void setLoginName(String client){
+		clientName = client;
+	}
+	
 	@Override
 	public String getClientName() {
 		return clientName;

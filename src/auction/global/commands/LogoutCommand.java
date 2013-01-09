@@ -1,13 +1,14 @@
 package auction.global.commands;
 
-import auction.client.interfaces.ICommandReceiverClient;
+import auction.global.config.CommandConfig;
+import auction.global.interfaces.IAuctionCommandReceiver;
 import auction.global.interfaces.ICommand;
 
 public class LogoutCommand implements ICommand {
 
-	private ICommandReceiverClient recepient;
+	private IAuctionCommandReceiver recepient;
 	
-	public LogoutCommand(ICommandReceiverClient recepient) {
+	public LogoutCommand(IAuctionCommandReceiver recepient) {
 		this.recepient = recepient;
 	}
 
@@ -18,7 +19,7 @@ public class LogoutCommand implements ICommand {
 
 	@Override
 	public String getName() {
-		return "logout";
+		return CommandConfig.LOGOUT;
 	}
 
 }

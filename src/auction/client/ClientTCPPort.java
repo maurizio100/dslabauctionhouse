@@ -10,10 +10,6 @@ import java.net.UnknownHostException;
 import auction.client.interfaces.IClientMessageForwarder;
 import auction.client.interfaces.INetworkSocket;
 import auction.global.exceptions.ServerDisconnectedException;
-import auction.global.interfaces.IExitObserver;
-import auction.global.interfaces.IExitSender;
-import auction.global.interfaces.ILocalMessageReceiver;
-import auction.global.interfaces.ILocalMessageSender;
 
 public class ClientTCPPort extends Thread 
 implements INetworkSocket{
@@ -48,18 +44,20 @@ implements INetworkSocket{
 				if(inString == null) throw new ServerDisconnectedException();
 			}
 		}catch( IOException e ){
-			sendMessageToClient("Shutting down ClientTCP - Socket inputstream closed.");
+			sendInfoMessageToClient("Shutting down ClientTCP - Socket inputstream closed.");
 		}catch( ServerDisconnectedException sde){
-			//			sendMessageToLocalMessenger("Push ENTER to completely shutdown the Program.");
-			//			localMessenger.invokeShutdown();
-			//			localMessenger.switchToOfflineMode();
-			sendMessageToClient("The Server is not online anymore. Client is going to shutdown now.");
+			sendInfoMessageToClient("The Server is not online anymore. Client is going to shutdown now.");
 		}
 
 	}
 
+
 	private void sendMessageToServer(String message) {
 		out.println(message);
+	}
+
+	private void sendInfoMessageToClient(String message) {
+		nwcontroller.sendNetworkStatusMessageToClient(message);
 	}
 
 	private void sendMessageToClient(String message){
@@ -70,6 +68,7 @@ implements INetworkSocket{
 	public void sendMessageToNetwork(String message){
 		sendMessageToServer(message);
 	}
+	
 
 	@Override
 	public void shutDownSocket() {
