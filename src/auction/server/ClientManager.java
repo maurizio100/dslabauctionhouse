@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import auction.global.communication.CommandController;
 import auction.global.interfaces.ICommandReceiver;
 import auction.global.interfaces.IExitObserver;
 import auction.global.interfaces.ILocalMessageReceiver;

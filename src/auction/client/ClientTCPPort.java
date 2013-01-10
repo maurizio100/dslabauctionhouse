@@ -19,8 +19,9 @@ implements INetworkSocket{
 	private PrintWriter out = null;
 	private BufferedReader in = null;
 	private IClientMessageForwarder nwcontroller = null;
-
-	public ClientTCPPort(String host, int port, IClientMessageForwarder nwcontroller ) 
+	private boolean offlineSignal = false;
+	
+	public ClientTCPPort(String host, int port, IClientMessageForwarder nwcontroller, boolean offlineSignal ) 
 			throws UnknownHostException, IOException{
 
 		this.nwcontroller = nwcontroller;
@@ -29,6 +30,7 @@ implements INetworkSocket{
 		out = new PrintWriter(serverConnection.getOutputStream(), true);
 		in = new BufferedReader( new InputStreamReader(serverConnection.getInputStream()));
 
+		this.offlineSignal = offlineSignal;
 		this.start();
 	}
 
@@ -56,7 +58,7 @@ implements INetworkSocket{
 
 
 	private void sendServerDisconnectedSignal() {
-		nwcontroller.sendDisconnectedSignal();
+		if( offlineSignal ) nwcontroller.sendDisconnectedSignal();
 	}
 
 	private void sendMessageToServer(String message) {

@@ -24,7 +24,7 @@ implements IClientMessageForwarder, INetworkControl
 		this.tcpPort = tcpPort;
 		this.supportClients = new ArrayList<INetworkSocket>();
 		
-		socketPort = new ClientTCPPort( host, tcpPort, this );
+		socketPort = new ClientTCPPort( host, tcpPort, this, true );
 	}
 	
 	public NetworkMessageForwardingController( String host, int tcpPort, int udpPort) throws UnknownHostException, IOException{
@@ -77,7 +77,7 @@ implements IClientMessageForwarder, INetworkControl
 	@Override
 	public boolean tryConnectToServer() {
 		try {
-			socketPort = new ClientTCPPort(host, tcpPort, this);
+			socketPort = new ClientTCPPort(host, tcpPort, this, true);
 			return true;
 		}catch (IOException e) {
 			this.client.receiveNetworkStatusMessage("INFO: Server is still not reachable!");
@@ -96,7 +96,7 @@ implements IClientMessageForwarder, INetworkControl
 
 	@Override
 	public void addSupportClient(String host, int port) throws UnknownHostException, IOException {
-		supportClients.add( new ClientTCPPort(host, port, this));
+		supportClients.add( new ClientTCPPort(host, port, this, false));
 	}
 
 	@Override

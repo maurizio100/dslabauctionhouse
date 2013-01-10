@@ -13,6 +13,7 @@ import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -54,6 +55,8 @@ import auction.global.crypt.RSACrypt;
 import auction.global.exceptions.NotACommandException;
 import auction.global.interfaces.IAuctionCommandReceiver;
 import auction.global.interfaces.ICommand;
+import auction.global.interfaces.ICommandReceiver;
+import auction.global.interfaces.ICommandSender;
 import auction.global.interfaces.ICrypt;
 import auction.global.interfaces.IExitObserver;
 import auction.global.interfaces.IExitSender;
@@ -62,9 +65,13 @@ import auction.global.interfaces.ILocalMessageSender;
 import auction.global.io.IOInstructionReceiver;
 import auction.global.io.IOInstructionSender;
 import auction.global.io.IOUnit;
+import auction.server.Client;
+import auction.server.ClientManager;
+import auction.server.interfaces.IClientOperator;
+import auction.server.interfaces.IClientThread;
 
 public class ClientModel 
-implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, IExitSender, ICommandReceiverClient{
+implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, IExitSender, ICommandReceiverClient, ICommandReceiver{
 
 	/*--------------Communication----------------------*/
 	private ILocalMessageSender localMessenger = null;
@@ -73,6 +80,7 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 	private ArrayList<IExitObserver> eObservers = null;
 	private String username = null;
 	private String loggedInClients = null; 
+	private HashMap<String, TimeStampRecord> signedBids = null;
 
 	private boolean loggedIn = false;
 	private int udpPort = -1;
@@ -117,6 +125,8 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 	};
 
 	private boolean offlineMode = false;
+	private IClientThread servedClient = null;
+	private IClientOperator clientManager = null;
 
 
 	/* ------------------- Constructors ------------------ */
@@ -129,6 +139,7 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 		this.nwcontrol.registerNetworkMessageReceiver(this);
 
 		eObservers = new ArrayList<IExitObserver>();
+		signedBids = new HashMap<String,TimeStampRecord>();
 
 		clientCommandRepository = new CommandRepository(clientCommands);
 		internalCommandRepository = new CommandRepository(internalCommands);
@@ -136,7 +147,7 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 		this.udpPort = udpPort;
 	}
 
-	public ClientModel(ILocalMessageSender lmc, int udpPort, INetworkControl nwcontrol, String pathToPublicKey, String pathToPrivateKey) {
+	public ClientModel(ILocalMessageSender lmc, int udpPort, INetworkControl nwcontrol, ICommandSender cs, ClientManager clientManager, String pathToPublicKey, String pathToPrivateKey) {
 		this(lmc, udpPort, nwcontrol);
 		this.pathToPrivateKey = pathToPrivateKey;
 		this.pathToPublicKey = pathToPublicKey;
@@ -144,6 +155,8 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 		/* client-challenge erstellen und in Base64 umwandeln wegen leerzeichen */
 		new SecureRandom().nextBytes(secureNumber);
 		secureNumber = Base64.encode(secureNumber);
+		this.clientManager = clientManager;
+		cs.registerCommandReceiver(this);
 	}
 
 	/* -------- Message parsing and processing ---------------*/
@@ -255,7 +268,8 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 			return;
 		}
 
-		if(splittedString.length != 2){ 
+		splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR, CommandConfig.LOGINREJECTTOKENCOUNT);
+		if(splittedString.length != CommandConfig.LOGINREJECTTOKENCOUNT){ 
 			this.sendSyntaxError(splittedString[CommandConfig.POSCOMMAND], CommandConfig.COMMANDNOTIFIER + CommandConfig.LOGIN + " <username>");
 			return;
 		}
@@ -308,16 +322,28 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 			crypt = new AESCrypt(secretkey, iv);
 
 			this.sendToNetwork(splittedString[CommandConfig.POSSERVERCHALLENGE]);
-			this.sendToNetwork(CommandConfig.COMMANDNOTIFIER + CommandConfig.GETCLIENTLIST);
+			//	this.sendToNetwork(CommandConfig.COMMANDNOTIFIER + CommandConfig.GETCLIENTLIST);
 			this.sendToIOUnit(ClientConfig.LOGINSUCCESSFUL);
 			loggedIn = true;
-			
+
 			if( offlineMode ){
 				offlineMode = false;
 				nwcontrol.exitClientSupportConnection();
 				
-				
-				//TODO send signedBid
+				String signedBidCommand = CommandConfig.COMMANDNOTIFIER + CommandConfig.SIGNEDBID + CommandConfig.ARGSEPARATOR;
+				for( String auctionKey : signedBids.keySet() ){
+					TimeStampRecord rec = signedBids.get(auctionKey);
+					signedBidCommand += auctionKey + CommandConfig.ARGSEPARATOR;
+					
+					int i = 0;
+					ArrayList<TimeStamp> tlist = rec.getTimestampList();
+					for( ; i < tlist.size()-1; i++ ){
+						signedBidCommand += tlist.get(i).toString() + CommandConfig.ARGSEPARATOR;
+					}
+					
+					signedBidCommand += tlist.get(i).toString();
+					this.sendToNetwork(signedBidCommand);
+				}
 			}
 		}
 		else{
@@ -362,6 +388,36 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 		loggedIn = false;
 		offlineMode = true;
 		this.sendToIOUnit( ClientConfig.LOGOUTSUCCESSFUL );
+
+		
+		//Starting of selecting clients randomly
+		System.out.println("Try to reconnect!");
+		if( loggedInClients != null ){
+			splittedString = loggedInClients.split("\n");
+			int supportClients = 0;
+			for( int i = 0; (i < (splittedString.length)) && supportClients < 2; i++ ){
+				String client = splittedString[i];
+				try{
+					if( !client.contains(username) ){
+						System.out.println("Try to connect with client!");
+						String[] infoParts = client.split("-");
+						infoParts = infoParts[0].split(":");
+
+						String host = infoParts[0];
+						int port = Integer.parseInt(infoParts[1]);
+
+						System.out.println("host: " + host + " port: " + port );
+						nwcontrol.addSupportClient(host, port);
+						supportClients++;
+
+					}
+				}catch(IOException e){System.out.println("Connnection not established: " +  e.getMessage());}
+			}
+
+			if( supportClients == 2 ){
+				System.out.println("Connections established!");
+			}
+		}
 	}
 	/* ------------- Auction management ------------------------------ */
 	@Override
@@ -388,28 +444,26 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 				}else{ this.sendToNetwork(currentCommand);}
 			}
 		}else{
-			
+
 			// Do timestamp
 			splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR, CommandConfig.BIDAUCTIONTOKENCOUNT);
 			int auctionID = Integer.parseInt(splittedString[CommandConfig.POSAUCTIONNUMBER]);
 			double bid = Double.parseDouble( splittedString[CommandConfig.POSBID]);
-			
+
 			String timestampCommand = CommandConfig.COMMANDNOTIFIER + CommandConfig.GETTIMESTAMP 
 					+ CommandConfig.ARGSEPARATOR + auctionID + CommandConfig.ARGSEPARATOR + bid;
-			
+
 			this.sendToSupportClients( timestampCommand );
 			// Check if server is available again
 			if( nwcontrol.tryConnectToServer() ){
 				sendToIOUnit( ClientConfig.SERVERAVAILABLEAGAIN );
-				currentCommand = CommandConfig.COMMANDNOTIFIER + CommandConfig.LOGIN + username;
+				currentCommand = CommandConfig.COMMANDNOTIFIER + CommandConfig.LOGIN + CommandConfig.ARGSEPARATOR + username;
 				this.login();
 				currentCommand = null;	
 
 			}	
 		}
 	}
-
-
 
 	@Override
 	public void list() {
@@ -493,10 +547,26 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 		{
 			message = crypt.encodeMessage(message);
 		}
-		nwcontrol.tryConnectToServer();
 		nwcontrol.sendMessageToNetwork(message);
 	}
-	
+
+	@Override
+	public void receiveCommand(String command, Client source) {
+		
+		try{
+			ICommand c = null;
+			if( this.isCommand(command) ){
+				c = parseCommand(command, internalCommandRepository);
+				currentCommand = command;
+				servedClient = source;
+				synchronized(servedClient){
+					if(c != null ) c.execute();
+					currentCommand = null;
+				}
+			}
+		}catch( NotACommandException e ){}
+	}
+
 	private void sendToSupportClients(String message) {
 		nwcontrol.sendToSupportClients(message);
 	}
@@ -504,26 +574,46 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 	@Override
 	public void getTimeStamp() {
 		splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR, CommandConfig.GETTIMESTAMPCOUNT);
+		int auctionId = Integer.parseInt(splittedString[CommandConfig.POSGETTIMESTAMPAUCTIONNUMBER]);
+		double bid = Double.parseDouble(splittedString[CommandConfig.POSGETTIMESTAMPBID]);
 		ClientSignature sig = new ClientSignature();
-		String timestamp = "!timestamp "+ splittedString[1] + " " + splittedString[2] + " " +  new Date().getTime();
+
+		String timestamp = CommandConfig.COMMANDNOTIFIER + CommandConfig.TIMESTAMP + CommandConfig.ARGSEPARATOR + 
+				auctionId + CommandConfig.ARGSEPARATOR + bid + CommandConfig.ARGSEPARATOR +  new Date().getTime();
+
 		if(privateKey != null)
 		{
 			String signatur = sig.signMessage(timestamp, privateKey);
-			timestamp += " " + signatur;
-			
-			//TODO Client timestamp zurueck senden
+			timestamp += CommandConfig.ARGSEPARATOR + signatur;
+			clientManager.sendFeedback(servedClient, timestamp);
 		}
-		
-		
 	}
 
 	@Override
 	public void processTimeStamp() {
 		// TODO !timestamp <id> <price> <timestamp> <signatur>
-		
+		sendToIOUnit("Received Timestamp!! from ");
+
+		splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR, CommandConfig.TIMESTAMPTOKENCOUNT );
+		int auctionId = Integer.parseInt(splittedString[CommandConfig.POSTIMESTAMPAUCTIONNUMBER]);
+		double bid = Double.parseDouble(splittedString[CommandConfig.POSTIMESTAMPBID]);
+		long timestamp = Long.parseLong(splittedString[CommandConfig.POSTIMESTAMP]);
+		String signature = splittedString[CommandConfig.POSTIMESTAMPSIGNATURE];
+		String clientName = ""; servedClient.getClientName(); // not sure
+
+		String key = auctionId + " " + bid;
+		TimeStampRecord rec = null;
+
+		if( signedBids.containsKey(key) ){
+			rec = signedBids.get(key);
+			rec.addTimeStamp(timestamp, signature, clientName);
+		}else{
+			rec = new TimeStampRecord();
+			rec.addTimeStamp(timestamp, signature, clientName);
+			signedBids.put(key, rec);
+		}
+
 	}
-
-
 
 	/*------------------------IO-Unit--------------------------------_*/
 	@Override
@@ -547,6 +637,7 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 			this.sendToNetwork(currentCommand);
 			this.resetLogin();
 		}
+		nwcontrol.exitClientSupportConnection();
 		nwcontrol.shutDownNetworkConnection();
 		this.sendExit();
 	}
@@ -593,5 +684,6 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 		}
 
 	}
+
 
 }

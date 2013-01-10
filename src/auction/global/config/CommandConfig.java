@@ -83,9 +83,16 @@ public class CommandConfig {
 	public static final int POSLOGGEDINCLIENTS = 1;
 	/*-- getTimestamp --*/
 	public static final String GETTIMESTAMP = "getTimestamp";
+	public static final int GETTIMESTAMPCOUNT = 3;
+	public static final int POSGETTIMESTAMPAUCTIONNUMBER = 1;
+	public static final int POSGETTIMESTAMPBID = 2;
 	/*-- timestamp --*/
 	public static final String TIMESTAMP = "timestamp";
-	public static final int GETTIMESTAMPCOUNT = 3;
+	public static final int TIMESTAMPTOKENCOUNT = 5;
+	public static final int POSTIMESTAMPAUCTIONNUMBER = 1;
+	public static final int POSTIMESTAMPBID = 2;
+	public static final int POSTIMESTAMP = 3;
+	public static final int POSTIMESTAMPSIGNATURE = 4;
 	
 	
 	

@@ -173,9 +173,9 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 	}
 
 	private void parseNetworkMessage( String message, Client source ){
-
+		
 		if( this.isCommand(message) ){
-			this.processCommand( message, source );
+			this.processCommand( message, source ); return;
 		}else if(cryptuser.containsKey(source.getClientName())){
 			message = cryptuser.get(source.getClientName()).decodeMessage(message);			}
 		else{
@@ -187,8 +187,9 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 		}else{
 			checkClientServerChallenge(message.getBytes(), source);
 		}
-	}
+	
 
+	}
 
 	private void parseMessage(String message) {
 		if( this.isCommand(message) ){
@@ -324,14 +325,6 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 			String description = splittedString[CommandConfig.POSAUCTIONDESCRIPTION];
 			String client = servedClient.getClientName();
 
-			/*int i = 2;
-
-			for (; i < (splittedString.length-1); i++ ){
-				description += splittedString[i];
-				description += " ";
-			}
-			description += splittedString[i];
-			*/
 			auctionManager.addAuction(description, client, time);
 
 		}catch(NumberFormatException nfe){this.sendFeedback(ServerConfig.TIMEFORMATERROR);}
@@ -406,14 +399,19 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 
 	@Override
 	public void endAuction(Auction auction) {
-		/*
-		String notification = splittedString[0] + ServerConfig.ARGSEPARATOR + splittedString[1] + ServerConfig.ARGSEPARATOR + splittedString[2] + ServerConfig.ARGSEPARATOR;
-		int i = 3;
-		for( ; i < splittedString.length-1; i++ ){ notification += splittedString[i]; }
-
-		String receiver = splittedString[i];
-		clientManager.sendNotification(notification, receiver);
-		*/
+		for( IClientThread c : clientManager.getLoggedInClients() ){
+			this.sendFeedback(c, "The auction " + auction.getDescription() + " with the id " + auction.getID() + " is over!\n" +
+					"The highest bidder was " + auction.getLastBidder() + " with " + auction.getHighestValue());
+		}
+		
+		if( groupBids.containsKey(auction.getID()) ){
+			groupBids.remove(auction.getID());
+			if( !queuedGroupBids.isEmpty() ){
+				this.addGroupBid(queuedGroupBids.dequeue());
+			}
+		}
+		
+		
 	}
 	/* --------- GroupBid management -------------------------------- */
 	@Override
@@ -547,8 +545,7 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 	public void close() {
 		Collection<IClientThread> clients = clientManager.getLoggedInClients();
 		for (IClientThread t : clients ){
-			servedClient = t;
-			this.logout();
+			cryptuser.remove(t.getClientName());
 		}
 		((ClientManager) clientManager).exit();
 		serverPort.exit();		
@@ -593,7 +590,7 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 
 	@Override
 	public void signedBid() {
-		// TODO implement signedBid
+		
 		
 	}
 

@@ -3,9 +3,12 @@ package auction.client;
 import java.io.IOException;
 import java.net.UnknownHostException;
 
+import auction.global.communication.CommandController;
 import auction.global.communication.LocalMessageController;
 import auction.global.exceptions.PortRangeException;
 import auction.global.io.IOUnit;
+import auction.server.ClientManager;
+import auction.server.ServerTCPPort;
 
 public class AuctionClient {
 
@@ -43,10 +46,15 @@ public class AuctionClient {
 			/*controllers for communication between all Client-objects*/
 			LocalMessageController lmc = new LocalMessageController();	
 			NetworkMessageForwardingController nmfc = new NetworkMessageForwardingController(host, tcpPort);
+			CommandController cc = new CommandController();
+
+			ClientManager clientManager = new ClientManager(cc, lmc);
 			
-			model = new ClientModel(lmc, udpPort, nmfc, pathToPublicKey, pathToPrivateKey);
+			model = new ClientModel(lmc, udpPort, nmfc, cc, clientManager, pathToPublicKey, pathToPrivateKey);
+			model.registerExitObserver(clientManager);
 			new IOUnit( lmc, model, model, WELCOME );
-						
+			
+			new ServerTCPPort(udpPort, clientManager, lmc, model);
 			
 		}catch(NumberFormatException nfe){
 			System.err.println("ClientMain: " +

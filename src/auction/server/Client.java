@@ -104,6 +104,7 @@ public class Client implements Runnable, IClientThread{
 		this.loggedIn = true;
 		clientName = name;
 		udpPort = preferredUDPPort;
+		
 
 	}
 	@Override
