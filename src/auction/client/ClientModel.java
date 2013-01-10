@@ -12,6 +12,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Date;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -47,6 +48,7 @@ import auction.global.config.ClientConfig;
 import auction.global.config.CommandConfig;
 import auction.global.config.GlobalConfig;
 import auction.global.crypt.AESCrypt;
+import auction.global.crypt.ClientSignature;
 import auction.global.crypt.HMAC;
 import auction.global.crypt.RSACrypt;
 import auction.global.exceptions.NotACommandException;
@@ -79,6 +81,7 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 	private String pathToPrivateKey = null;
 	private ICrypt crypt = null;
 	private byte[] secureNumber = new byte[32];
+	private PrivateKey privateKey = null;
 
 	/*-----------GroupBid management-----------------*/
 	private boolean confirmationSent = false;
@@ -271,7 +274,7 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 				}
 			});
 			KeyPair keyPair = (KeyPair) in.readObject(); 
-			PrivateKey privateKey = keyPair.getPrivate();
+			privateKey = keyPair.getPrivate();
 			crypt = new RSACrypt(pathToPublicKey, privateKey);
 
 			String secnum = new String(secureNumber);
@@ -500,12 +503,23 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 
 	@Override
 	public void getTimeStamp() {
-				
+		splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR, CommandConfig.GETTIMESTAMPCOUNT);
+		ClientSignature sig = new ClientSignature();
+		String timestamp = "!timestamp "+ splittedString[1] + " " + splittedString[2] + " " +  new Date().getTime();
+		if(privateKey != null)
+		{
+			String signatur = sig.signMessage(timestamp, privateKey);
+			timestamp += " " + signatur;
+			
+			//TODO Client timestamp zurueck senden
+		}
+		
+		
 	}
 
 	@Override
 	public void processTimeStamp() {
-		// TODO Auto-generated method stub
+		// TODO !timestamp <id> <price> <timestamp> <signatur>
 		
 	}
 

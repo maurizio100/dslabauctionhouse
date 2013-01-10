@@ -85,6 +85,7 @@ public class CommandConfig {
 	public static final String GETTIMESTAMP = "getTimestamp";
 	/*-- timestamp --*/
 	public static final String TIMESTAMP = "timestamp";
+	public static final int GETTIMESTAMPCOUNT = 3;
 	
 	
 	
