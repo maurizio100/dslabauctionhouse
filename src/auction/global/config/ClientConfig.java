@@ -19,4 +19,5 @@ public class ClientConfig {
 	public static final String CONFIRMLOGGEDOUT = INFOCLIENT + "You can\'t confirm to a groupbid - You are not Logged in!";
 	public static final String GROUPBIDCONFIRMED = INFOCLIENT + "Groupbid confirmed!";
 	public static final String LOGOUTSUCCESSFUL = INFOCLIENT + "You are logged out now!";
+	public static final String SERVERAVAILABLEAGAIN = INFOCLIENT + "The Server is online again!";
 }

@@ -22,11 +22,13 @@ import org.bouncycastle.openssl.PasswordFinder;
 import org.bouncycastle.util.encoders.Base64;
 
 import auction.client.commands.AuctionEndedCommand;
+import auction.client.commands.GetTimestampCommand;
 import auction.client.commands.LoginRejectCommand;
 import auction.client.commands.NotifyConfirmGroupBidCommand;
 import auction.client.commands.OkCommand;
 import auction.client.commands.OverbidCommand;
 import auction.client.commands.RejectGroupBidCommand;
+import auction.client.commands.TimeStampCommand;
 import auction.client.interfaces.ICommandReceiverClient;
 import auction.client.interfaces.INetworkControl;
 import auction.client.interfaces.INetworkMessageReceiver;
@@ -36,6 +38,7 @@ import auction.global.commands.CommandRepository;
 import auction.global.commands.ConfirmGroupBidCommand;
 import auction.global.commands.CreateAuctionCommand;
 import auction.global.commands.ExitCommand;
+import auction.global.commands.GetClientListCommand;
 import auction.global.commands.GroupBidAuctionCommand;
 import auction.global.commands.ListCommand;
 import auction.global.commands.LoginCommand;
@@ -67,6 +70,7 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 	private IOInstructionReceiver ioReceiver = null;
 	private ArrayList<IExitObserver> eObservers = null;
 	private String username = null;
+	private String loggedInClients = null; 
 
 	private boolean loggedIn = false;
 	private int udpPort = -1;
@@ -82,7 +86,7 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 	/*-----------Command Management-------------------*/
 	private String currentCommand = "";
 	private String[] splittedString;
-	
+
 	private CommandRepository clientCommandRepository = null;
 	private ICommand[] clientCommands = {
 			new BidAuctionCommand(this),
@@ -92,9 +96,10 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 			new LoginCommand(this),
 			new LogoutCommand(this),
 			new GroupBidAuctionCommand(this),
-			new ConfirmGroupBidCommand(this)
+			new ConfirmGroupBidCommand(this),
+			new GetClientListCommand(this)
 	};
-	
+
 	private CommandRepository internalCommandRepository = null;
 	private ICommand[] internalCommands = {
 			new OverbidCommand(this),
@@ -102,10 +107,13 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 			new OkCommand(this),
 			new RejectGroupBidCommand(this),
 			new NotifyConfirmGroupBidCommand(this),
-			new LoginRejectCommand(this)			
+			new LoginRejectCommand(this),
+			new GetClientListCommand(this),
+			new GetTimestampCommand(this),
+			new TimeStampCommand(this)
 	};
 
-	private boolean offlinemode = false;
+	private boolean offlineMode = false;
 
 
 	/* ------------------- Constructors ------------------ */
@@ -121,7 +129,7 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 
 		clientCommandRepository = new CommandRepository(clientCommands);
 		internalCommandRepository = new CommandRepository(internalCommands);
-		
+
 		this.udpPort = udpPort;
 	}
 
@@ -252,8 +260,8 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 		/* password request for private key */
 		PEMReader in;
 		try {
-			String clientName = splittedString[CommandConfig.POSCLIENTNAME];
-			String pathPrivateKey = pathToPrivateKey + clientName + GlobalConfig.PRIVATEKEYPOSTFIX;
+			if(username == null ) username = splittedString[CommandConfig.POSCLIENTNAME];
+			String pathPrivateKey = pathToPrivateKey + username + GlobalConfig.PRIVATEKEYPOSTFIX;
 			in = new PEMReader(new FileReader(pathPrivateKey), new PasswordFinder() {
 				@Override
 				public char[] getPassword() {
@@ -267,7 +275,7 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 			crypt = new RSACrypt(pathToPublicKey, privateKey);
 
 			String secnum = new String(secureNumber);
-			username = clientName.toLowerCase();
+			username = username.toLowerCase();
 			this.sendToNetwork(currentCommand + " " + udpPort + " " + secnum);
 
 		} catch (FileNotFoundException e) {
@@ -297,13 +305,22 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 			crypt = new AESCrypt(secretkey, iv);
 
 			this.sendToNetwork(splittedString[CommandConfig.POSSERVERCHALLENGE]);
+			this.sendToNetwork(CommandConfig.COMMANDNOTIFIER + CommandConfig.GETCLIENTLIST);
 			this.sendToIOUnit(ClientConfig.LOGINSUCCESSFUL);
 			loggedIn = true;
-
+			
+			if( offlineMode ){
+				offlineMode = false;
+				nwcontrol.exitClientSupportConnection();
+				
+				
+				//TODO send signedBid
+			}
 		}
 		else{
 			this.sendToIOUnit(ClientConfig.LOGINFAILED);
 			username = null;
+
 		}
 	}
 
@@ -337,8 +354,11 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 	}
 
 	@Override
-	public void receiveLogoutSignal() {
-		this.resetLogin();
+	public void receiveDisconnectSignal() {
+		crypt = null;
+		loggedIn = false;
+		offlineMode = true;
+		this.sendToIOUnit( ClientConfig.LOGOUTSUCCESSFUL );
 	}
 	/* ------------- Auction management ------------------------------ */
 	@Override
@@ -355,15 +375,38 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 
 	@Override
 	public void bidForAuction() {
-		if( !loggedIn ){
-			this.sendToIOUnit(ClientConfig.BIDNOTLOGGEDIN);
+		if( !offlineMode ){
+			if( !loggedIn ){
+				this.sendToIOUnit(ClientConfig.BIDNOTLOGGEDIN);
+			}else{
+				splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR, CommandConfig.BIDAUCTIONTOKENCOUNT);
+				if( splittedString.length != CommandConfig.BIDAUCTIONTOKENCOUNT ){
+					this.sendSyntaxError(splittedString[CommandConfig.POSCOMMAND], CommandConfig.COMMANDNOTIFIER + CommandConfig.BID + " <auction-id> <amount>");
+				}else{ this.sendToNetwork(currentCommand);}
+			}
 		}else{
+			
+			// Do timestamp
 			splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR, CommandConfig.BIDAUCTIONTOKENCOUNT);
-			if( splittedString.length != CommandConfig.BIDAUCTIONTOKENCOUNT ){
-				this.sendSyntaxError(splittedString[CommandConfig.POSCOMMAND], CommandConfig.COMMANDNOTIFIER + CommandConfig.BID + " <auction-id> <amount>");
-			}else{ this.sendToNetwork(currentCommand);}
+			int auctionID = Integer.parseInt(splittedString[CommandConfig.POSAUCTIONNUMBER]);
+			double bid = Double.parseDouble( splittedString[CommandConfig.POSBID]);
+			
+			String timestampCommand = CommandConfig.COMMANDNOTIFIER + CommandConfig.GETTIMESTAMP 
+					+ CommandConfig.ARGSEPARATOR + auctionID + CommandConfig.ARGSEPARATOR + bid;
+			
+			this.sendToSupportClients( timestampCommand );
+			// Check if server is available again
+			if( nwcontrol.tryConnectToServer() ){
+				sendToIOUnit( ClientConfig.SERVERAVAILABLEAGAIN );
+				currentCommand = CommandConfig.COMMANDNOTIFIER + CommandConfig.LOGIN + username;
+				this.login();
+				currentCommand = null;	
+
+			}	
 		}
 	}
+
+
 
 	@Override
 	public void list() {
@@ -419,7 +462,7 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 		splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR);
 		String HMAC = splittedString[splittedString.length-1];
 		String rejectMessage = ""; 
-		
+
 		int i = 1;
 		for( ; i < splittedString.length -2; i++ ){
 			rejectMessage += splittedString[i] + ' ';
@@ -441,13 +484,32 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 
 	/*------------------- Network Messaging --------------------*/
 	private void sendToNetwork(String message){
+
 		/* if user is logged in then encryption of the message */
 		if(crypt != null)
 		{
 			message = crypt.encodeMessage(message);
 		}
+		nwcontrol.tryConnectToServer();
 		nwcontrol.sendMessageToNetwork(message);
 	}
+	
+	private void sendToSupportClients(String message) {
+		nwcontrol.sendToSupportClients(message);
+	}
+
+	@Override
+	public void getTimeStamp() {
+				
+	}
+
+	@Override
+	public void processTimeStamp() {
+		// TODO Auto-generated method stub
+		
+	}
+
+
 
 	/*------------------------IO-Unit--------------------------------_*/
 	@Override
@@ -505,5 +567,17 @@ implements ILocalMessageReceiver, INetworkMessageReceiver, IOInstructionSender, 
 		return false;
 	}
 
+	@Override
+	public void getClientList() {
+		splittedString = currentCommand.split( CommandConfig.ARGSEPARATOR, CommandConfig.GETLISTTOKENCOUNT );
+
+		if( splittedString.length == 1 ){
+			this.sendToNetwork(currentCommand);
+		}else if( splittedString.length == 3 ){
+			loggedInClients = splittedString[CommandConfig.POSLOGGEDINCLIENTS];
+			this.sendToIOUnit(loggedInClients);		
+		}
+
+	}
 
 }

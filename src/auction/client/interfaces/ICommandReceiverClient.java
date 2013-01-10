@@ -11,6 +11,8 @@ extends IAuctionCommandReceiver {
 	public void notifyConfirmed();
 	public void overbid();
 	public void endAuction();
+	public void getTimeStamp();
+	public void processTimeStamp();
 	
 	
 }

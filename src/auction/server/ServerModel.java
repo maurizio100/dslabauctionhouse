@@ -6,6 +6,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Timer;
 
@@ -17,10 +18,13 @@ import auction.global.commands.CommandRepository;
 import auction.global.commands.ConfirmGroupBidCommand;
 import auction.global.commands.CreateAuctionCommand;
 import auction.global.commands.ExitCommand;
+import auction.global.commands.GetClientListCommand;
 import auction.global.commands.GroupBidAuctionCommand;
 import auction.global.commands.ListCommand;
 import auction.global.commands.LoginCommand;
 import auction.global.commands.LogoutCommand;
+import auction.global.communication.CommandController;
+import auction.global.communication.LocalMessageController;
 import auction.global.config.CommandConfig;
 import auction.global.config.GlobalConfig;
 import auction.global.config.ServerConfig;
@@ -30,8 +34,8 @@ import auction.global.crypt.RSACrypt;
 import auction.global.exceptions.BidTooLowException;
 import auction.global.exceptions.BidderNotAvailableException;
 import auction.global.exceptions.BidderSameConfirmException;
+import auction.global.exceptions.PortRangeException;
 import auction.global.exceptions.ProductNotAvailableException;
-import auction.global.interfaces.IAuctionCommandReceiver;
 import auction.global.interfaces.ICommand;
 import auction.global.interfaces.ICommandReceiver;
 import auction.global.interfaces.ICommandSender;
@@ -43,23 +47,33 @@ import auction.global.interfaces.ILocalMessageSender;
 import auction.global.io.IOInstructionReceiver;
 import auction.global.io.IOInstructionSender;
 import auction.global.io.IOUnit;
+import auction.server.commands.CloseCommand;
+import auction.server.commands.ReconnectCommand;
+import auction.server.commands.SignedBidCommand;
 import auction.server.interfaces.IAuctionActivityReceiver;
 import auction.server.interfaces.IAuctionOperator;
 import auction.server.interfaces.IClientOperator;
 import auction.server.interfaces.IClientThread;
+import auction.server.interfaces.ICommandReceiverServer;
 
 import org.bouncycastle.openssl.PEMReader;
 import org.bouncycastle.openssl.PasswordFinder;
 import org.bouncycastle.util.encoders.Base64;
 
 public class ServerModel 
-implements IExitSender, IAuctionCommandReceiver, ICommandReceiver,
+implements IExitSender, ICommandReceiverServer, ICommandReceiver,
 ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 
 	private ArrayList<IExitObserver> eObservers = null;
 	private IOInstructionReceiver ioReceiver = null;
 	private Timer timer = null;
-
+	private int tcpPort = -1;
+	/* for simulation only */
+	private ServerTCPPort serverPort = null;
+	
+	private CommandController cc = null;
+	private LocalMessageController lmc = null; 
+	
 	/* --- Auction and Client Manager --------------- */
 	private IAuctionOperator auctionManager = null; 
 	private IClientOperator clientManager = null;
@@ -91,13 +105,18 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 			new LoginCommand(this),
 			new LogoutCommand(this),
 			new GroupBidAuctionCommand(this),
-			new ConfirmGroupBidCommand(this)
+			new ConfirmGroupBidCommand(this),
+			new CloseCommand(this),
+			new ReconnectCommand(this),
+			new GetClientListCommand(this),
+			new SignedBidCommand(this)
 	};
 
 	/* ---- Constructors ---------------------------- */
-	public ServerModel(ILocalMessageSender lmc,
+	public ServerModel(int port, ILocalMessageSender lmc,
 			ICommandSender cc, IClientOperator clientManager) {
 
+		tcpPort = port;
 		eObservers = new ArrayList<IExitObserver>();		
 		groupBids = new HashMap<Integer,GroupBid>();
 
@@ -106,15 +125,20 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 		auctionManager = new AuctionManager(this,this);
 		this.clientManager = clientManager;
 		timer = new Timer();
-
+		
+		
 		lmc.registerMessageReceiver(this);
 		cc.registerCommandReceiver(this);
+		
+		/*--- for close and reconnect simulation ---*/
+		this.cc = (CommandController)cc;
+		this.lmc = (LocalMessageController)lmc;
 	}
 
-	public ServerModel(ILocalMessageSender lmc,
+	public ServerModel(int port, ILocalMessageSender lmc,
 			ICommandSender cc, IClientOperator clientManager, String pathToPublicKey,PrivateKey privateKey, String pathToDir) {
 
-		this(lmc, cc, clientManager);
+		this(port, lmc, cc, clientManager);
 		this.privateKey = privateKey;
 		this.pathToPublicKey = pathToPublicKey;
 		this.pathToDir = pathToDir;
@@ -519,6 +543,26 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 		}
 	}
 
+	@Override
+	public void close() {
+		Collection<IClientThread> clients = clientManager.getLoggedInClients();
+		for (IClientThread t : clients ){
+			servedClient = t;
+			this.logout();
+		}
+		((ClientManager) clientManager).exit();
+		serverPort.exit();		
+	}
+
+	@Override
+	public void reconnect() {
+		clientManager = new ClientManager(cc, lmc);
+		try{
+			serverPort = new ServerTCPPort(tcpPort, (ClientManager) clientManager, lmc, this);
+		}catch(PortRangeException pre){}
+	}
+
+	
 	private void sendToIOUnit( String message ){ ioReceiver.processInstruction(message); }
 
 	@Override
@@ -542,4 +586,27 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 	@Override
 	public void exit() { if( servedClient.isLoggedIn() ) { this.logout(); } clientManager.shutDownClient(servedClient); }
 
+	
+	public void setServerTCP(ServerTCPPort stp){
+		serverPort = stp;
+	}
+
+	@Override
+	public void signedBid() {
+		// TODO implement signedBid
+		
+	}
+
+	@Override
+	public void getClientList() {
+		Collection<IClientThread> clients = clientManager.getLoggedInClients();
+		String clientList = CommandConfig.COMMANDNOTIFIER + CommandConfig.GETCLIENTLIST + " ";
+
+		for( IClientThread t : clients){
+			clientList += t.getHost() + ":" + t.getUdpPort() + "-" + t.getClientName() + "\n";
+		}
+		clientList = clientList.replace("/", "");
+		this.sendFeedback( clientList );
+	}
+	
 }

@@ -11,5 +11,6 @@ public interface IAuctionCommandReceiver {
 	public void list();
 	public void exit();
 	
+	public void getClientList();
 
 }

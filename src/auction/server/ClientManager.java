@@ -79,6 +79,7 @@ public class ClientManager implements IClientOperator, IExitObserver{
 	@Override
 	public void logoffClient(IClientThread thread) {
 		thread.setLogout();
+		loggedInClients.remove(thread.getClientName());
 	}
 
 	@Override
@@ -133,8 +134,8 @@ public class ClientManager implements IClientOperator, IExitObserver{
 		for( IClientThread t : allClients){
 			if( t.isLoggedIn() ){
 				t.setLogout();
-				t.exit();
 			}
+			t.exit();
 		}
 		executorService.shutdown();
 	}

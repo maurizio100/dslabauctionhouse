@@ -70,6 +70,21 @@ public class CommandConfig {
 	
 	/*-- exit --*/
 	public static final String END = "end";
+	/*-- close --*/
+	public static final String CLOSE = "close";
+	/*-- reconnect --*/
+	public static final String RECONNECT = "reconnect";
+	/*-- signedBid --*/
+	public static final String SIGNEDBID = "signedBid";
+	
+	/*-- getClientList --*/
+	public static final String GETCLIENTLIST = "getClientList";
+	public static final int GETLISTTOKENCOUNT = 3;
+	public static final int POSLOGGEDINCLIENTS = 1;
+	/*-- getTimestamp --*/
+	public static final String GETTIMESTAMP = "getTimestamp";
+	/*-- timestamp --*/
+	public static final String TIMESTAMP = "timestamp";
 	
 	
 	

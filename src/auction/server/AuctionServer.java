@@ -80,10 +80,11 @@ public class AuctionServer {
 
 			ClientManager clientManager = new ClientManager(cc, lmc);
 			//ServerModel model = new ServerModel(lmc, cc, clientManager);
-			ServerModel model = new ServerModel(lmc, cc, clientManager, pathToPublicKey, privateKey, pathToDir);
+			ServerModel model = new ServerModel(tcpPort, lmc, cc, clientManager, pathToPublicKey, privateKey, pathToDir);
 			model.registerExitObserver(clientManager);
 
 			ServerTCPPort serverTCPPort = new ServerTCPPort(tcpPort, clientManager, lmc, model);
+			model.setServerTCP(serverTCPPort);
 			IOUnit ioUnit = new IOUnit(lmc, model, model, WELCOME);
 
 		} catch (PortRangeException e) {

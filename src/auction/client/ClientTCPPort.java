@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
@@ -45,16 +46,17 @@ implements INetworkSocket{
 			}
 		}catch( IOException e ){
 			sendInfoMessageToClient("Socket inputstream closed. Logging out Client!");
-			sendLogoutSignal();
+			sendServerDisconnectedSignal();
 		}catch( ServerDisconnectedException sde){
 			sendInfoMessageToClient("The Server is not online anymore. Client is going to Log out!");
-			sendLogoutSignal();
+			sendServerDisconnectedSignal();
 		}
+		
 	}
 
 
-	private void sendLogoutSignal() {
-		nwcontroller.sendLogoutSignal();
+	private void sendServerDisconnectedSignal() {
+		nwcontroller.sendDisconnectedSignal();
 	}
 
 	private void sendMessageToServer(String message) {
@@ -87,5 +89,10 @@ implements INetworkSocket{
 				out.close();
 			}
 		}
+	}
+
+	@Override
+	public Socket getConnection() {
+		return serverConnection;
 	}
 }
