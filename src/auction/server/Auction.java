@@ -37,6 +37,7 @@ public class Auction extends TimerTask{
 				df.format(d));
 	}
 	
+
 	public void run(){
 		Date now = new Date();
 		if( endDate.getTime().getTime() <= now.getTime()){
@@ -81,5 +82,9 @@ public class Auction extends TimerTask{
 
 	public double getHighestValue() {
 		return actualValue;
+	}
+	
+	public long getEndDate() {
+		return endDate.getTimeInMillis();
 	}
 }

@@ -63,11 +63,9 @@ public class AuctionServer {
 				privateKey = keyPair.getPrivate();
 
 			} catch (FileNotFoundException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				System.out.println("Couldn't read the private Key: File not found!");
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				System.out.println("Couldn't read the private Key: Passphrase is wrong!");		
 			}
 			//Passwortabfrage ende
 

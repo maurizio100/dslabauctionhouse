@@ -15,12 +15,14 @@ public class AuctionManager
 implements IAuctionOperator, IAuctionMessageReceiver, IExitObserver {
 
 	private HashMap<Integer, Auction> activeAuctions = null;
+	private HashMap<Integer, Auction> deletedAuctions = null;
 	private Timer timer;
 	private int auctionId = 0;
 	private IAuctionActivityReceiver auctionActivityReceiver = null;
 
 	public AuctionManager(IExitSender es, IAuctionActivityReceiver activityReceiver) {
 		activeAuctions = new HashMap<Integer, Auction>();
+		deletedAuctions = new HashMap<Integer, Auction>();
 		timer = new Timer();
 		
 		this.auctionActivityReceiver = activityReceiver;
@@ -96,6 +98,7 @@ implements IAuctionOperator, IAuctionMessageReceiver, IExitObserver {
 				+ " " + a.getDescription() + " " + winner;
 		commandReceiver.receiveCommand(notification, null);*/
 		
+		deletedAuctions.put(a.getID(), a);
 		this.removeAuction(a.getID());
 		auctionActivityReceiver.endAuction(a);
 
@@ -125,6 +128,33 @@ implements IAuctionOperator, IAuctionMessageReceiver, IExitObserver {
 	@Override
 	public void receiveAuctionCreateMessage(String message) {
 		auctionActivityReceiver.receiveAuctionNotification(message);
+	}
+
+	@Override
+	public void bidForEndedAuction(int auctionId, String clientName,
+			double bid, long timestamp) throws ProductNotAvailableException
+	{
+		if(deletedAuctions.containsKey(auctionId))
+		{
+			if(deletedAuctions.get(auctionId).getEndDate() >= timestamp)
+			{
+				if(deletedAuctions.get(auctionId).getHighestValue() < bid)
+				{
+					deletedAuctions.get(auctionId).setNewPrice(clientName, bid);
+					auctionActivityReceiver.receiveAuctionNotification("You have successfully bid with " + bid + " on " + deletedAuctions.get(auctionId).getDescription());
+				}
+			}
+			else
+			{
+				throw new ProductNotAvailableException();
+			}
+		}
+		else
+		{
+			throw new ProductNotAvailableException();
+		}
+		
+		
 	}
 
 }

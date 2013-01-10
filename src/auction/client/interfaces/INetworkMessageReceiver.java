@@ -6,4 +6,6 @@ public interface INetworkMessageReceiver {
 	public void receiveNetworkInformation(String info);
 	public void receiveNetworkStatusMessage(String message);
 	public void receiveDisconnectSignal();
+	public void receiveNetworkMessage(String message, String servername);
+	public void reconnectToServer();
 }

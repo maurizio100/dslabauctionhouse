@@ -3,13 +3,14 @@ package auction.client;
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.TimerTask;
 
 import auction.client.interfaces.IClientMessageForwarder;
 import auction.client.interfaces.INetworkControl;
 import auction.client.interfaces.INetworkMessageReceiver;
 import auction.client.interfaces.INetworkSocket;
 
-public class NetworkMessageForwardingController 
+public class NetworkMessageForwardingController extends TimerTask
 implements IClientMessageForwarder, INetworkControl
 {
 	private INetworkSocket socketPort = null;
@@ -17,19 +18,20 @@ implements IClientMessageForwarder, INetworkControl
 	private String host = null;
 	private int tcpPort = -1;
 	private INetworkMessageReceiver client = null;
-	
+	private boolean serverOnline = true;
+
 
 	public NetworkMessageForwardingController(String host, int tcpPort) throws UnknownHostException, IOException{
 		this.host = host;
 		this.tcpPort = tcpPort;
 		this.supportClients = new ArrayList<INetworkSocket>();
-		
+
 		socketPort = new ClientTCPPort( host, tcpPort, this, true );
 	}
-	
+
 	public NetworkMessageForwardingController( String host, int tcpPort, int udpPort) throws UnknownHostException, IOException{
 		this( host, tcpPort );
-//		ClientUDPPort updPort = new ClientUDPPort( udpPort );
+		//		ClientUDPPort updPort = new ClientUDPPort( udpPort );
 
 	}
 
@@ -37,7 +39,7 @@ implements IClientMessageForwarder, INetworkControl
 	public void registerNetworkMessageReceiver(INetworkMessageReceiver receiver) {
 		this.client = receiver;
 	}
-	
+
 	@Override
 	public void sendMessageToNetwork(String message) {
 		if( socketPort != null ){
@@ -60,7 +62,7 @@ implements IClientMessageForwarder, INetworkControl
 	@Override
 	public void sendNetworkInformationToClient(String info) {
 		this.client.receiveNetworkInformation( info );
-		
+
 	}
 
 	@Override
@@ -72,15 +74,16 @@ implements IClientMessageForwarder, INetworkControl
 	public void sendDisconnectedSignal() {
 		this.client.receiveDisconnectSignal();
 		socketPort = null;
+		serverOnline = false;
 	}
 
 	@Override
 	public boolean tryConnectToServer() {
 		try {
+			
 			socketPort = new ClientTCPPort(host, tcpPort, this, true);
 			return true;
 		}catch (IOException e) {
-			this.client.receiveNetworkStatusMessage("INFO: Server is still not reachable!");
 			socketPort = null;
 		}
 		return false;
@@ -95,8 +98,8 @@ implements IClientMessageForwarder, INetworkControl
 	}
 
 	@Override
-	public void addSupportClient(String host, int port) throws UnknownHostException, IOException {
-		supportClients.add( new ClientTCPPort(host, port, this, false));
+	public void addSupportClient(String host, int port, String servername) throws UnknownHostException, IOException {
+		supportClients.add( new ClientTCPPort(host, port, this, false, servername));
 	}
 
 	@Override
@@ -105,4 +108,28 @@ implements IClientMessageForwarder, INetworkControl
 			ns.sendMessageToNetwork(message);
 		}
 	}
+
+	@Override
+	public void sendMessageToClient(String message, String servername) {
+		this.client.receiveNetworkMessage(message, servername);
+
+	}
+
+	@Override
+	public boolean supportConnectionEstablished() {
+		return (supportClients.size() == 2);
+	}
+
+	@Override
+	public void run() {
+		if(!serverOnline)
+		{
+			if(tryConnectToServer())
+			{
+				serverOnline = true;
+				client.reconnectToServer();
+			}
+		}
+	}
+
 }

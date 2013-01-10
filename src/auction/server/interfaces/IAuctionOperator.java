@@ -9,5 +9,7 @@ public interface IAuctionOperator {
 	public String listAuction();
 	public int getAuctionAmount();
 	public boolean isAuctionIdAvailable( int auctionId );
+	public void bidForEndedAuction(int auctionId, String clientName,
+			double bid, long timestamp) throws ProductNotAvailableException;
 	
 }

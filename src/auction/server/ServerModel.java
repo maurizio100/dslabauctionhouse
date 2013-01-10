@@ -7,6 +7,7 @@ import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Timer;
 
@@ -29,6 +30,7 @@ import auction.global.config.CommandConfig;
 import auction.global.config.GlobalConfig;
 import auction.global.config.ServerConfig;
 import auction.global.crypt.AESCrypt;
+import auction.global.crypt.ClientSignature;
 import auction.global.crypt.HMAC;
 import auction.global.crypt.RSACrypt;
 import auction.global.exceptions.BidTooLowException;
@@ -70,10 +72,10 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 	private int tcpPort = -1;
 	/* for simulation only */
 	private ServerTCPPort serverPort = null;
-	
+
 	private CommandController cc = null;
 	private LocalMessageController lmc = null; 
-	
+
 	/* --- Auction and Client Manager --------------- */
 	private IAuctionOperator auctionManager = null; 
 	private IClientOperator clientManager = null;
@@ -125,11 +127,11 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 		auctionManager = new AuctionManager(this,this);
 		this.clientManager = clientManager;
 		timer = new Timer();
-		
-		
+
+
 		lmc.registerMessageReceiver(this);
 		cc.registerCommandReceiver(this);
-		
+
 		/*--- for close and reconnect simulation ---*/
 		this.cc = (CommandController)cc;
 		this.lmc = (LocalMessageController)lmc;
@@ -166,14 +168,14 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 	public void receiveAuctionNotification(String message) {
 		this.receiveAuctionNotification( message, servedClient );
 	}
-	
+
 	@Override
 	public void receiveAuctionNotification(String message, IClientThread client) {
 		this.sendFeedback(client, message);
 	}
 
 	private void parseNetworkMessage( String message, Client source ){
-		
+
 		if( this.isCommand(message) ){
 			this.processCommand( message, source ); return;
 		}else if(cryptuser.containsKey(source.getClientName())){
@@ -187,7 +189,7 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 		}else{
 			checkClientServerChallenge(message.getBytes(), source);
 		}
-	
+
 
 	}
 
@@ -205,7 +207,7 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 		String extractedCommand = splittedString[CommandConfig.POSCOMMAND];
 		return commandRepository.checkCommand(extractedCommand);
 	}
-	
+
 	private void processCommand( String message, IClientThread source ){
 		ICommand c = null;
 		currentCommand = message;
@@ -222,7 +224,7 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 			if( c != null ){ c.execute(); }	
 		}
 	}
-	
+
 	private void sendGroupBidNotification(GroupBid groupBid) {
 		IClientThread groupBidder = groupBid.getGroupBidder();
 
@@ -237,8 +239,9 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 	@Override
 	public void login() {
 		try{
+			sendToIOUnit("Login bekommen");
 			splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR, ServerConfig.LOGINSERVERTOKENCOUNT );
-			
+
 			String clientName = splittedString[CommandConfig.POSCLIENTNAME];
 			int udpPort = Integer.parseInt(splittedString[CommandConfig.POSUDPPORT]);
 			String clientchallenge = splittedString[ServerConfig.POSLOGINCLIENTCHALLENGE];
@@ -275,13 +278,12 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 					String secretkey = new String(Base64.encode(key.getEncoded()));
 					String serverchallenge = new String(secureNumberUser.get(clientName));
 					String ivparam = new String(iv);
-				
+
 					String cryptmessage = CommandConfig.COMMANDNOTIFIER + CommandConfig.OK + CommandConfig.ARGSEPARATOR + clientchallenge + CommandConfig.ARGSEPARATOR 
 							+ serverchallenge + CommandConfig.ARGSEPARATOR + secretkey + CommandConfig.ARGSEPARATOR + ivparam;
-
 					this.sendFeedback(cryptmessage);
 					cryptuser.put(clientName, new AESCrypt(key, iv));
-					
+
 				} catch (IOException e) {
 					this.sendLoginRject(ServerConfig.LOGINERROR, clientName);
 				} catch (NoSuchAlgorithmException e) {
@@ -306,21 +308,21 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 		String n = new String(number);
 		String cn = new String(secureNumberUser.get(source.getClientName()));
 		String client = source.getClientName();
-		
+
 		if(n.equals(cn)){
 			sendToIOUnit(client + " Logged in successfully!");		
 		}else{
 			this.sendLoginRject(ServerConfig.LOGINERROR, client);
 		}
 	}
-	
+
 	/* ---------- Auction Management ------------------------- */	
 	@Override
 	public void createAuction() {
 		try{
-			
+
 			splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR, CommandConfig.CREATEAUCTIONTOKENCOUNT);
-			
+
 			int time = Integer.parseInt(splittedString[CommandConfig.POSAUCTIONTIME]);
 			String description = splittedString[CommandConfig.POSAUCTIONDESCRIPTION];
 			String client = servedClient.getClientName();
@@ -333,21 +335,21 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 	@Override
 	public void bidForAuction() {
 		try{
-			
+
 			splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR, CommandConfig.BIDAUCTIONTOKENCOUNT);
-			
+
 			int auctionNumber = Integer.parseInt(splittedString[CommandConfig.POSAUCTIONNUMBER]);
 			double bid = Double.parseDouble(splittedString[CommandConfig.POSBID]);
 			String groupBidCommand = CommandConfig.COMMANDNOTIFIER + CommandConfig.GROUPBID;
 			String client = servedClient.getClientName();
-			
+
 			if( !auctionManager.isAuctionIdAvailable(auctionNumber)){ throw new ProductNotAvailableException(); }
 
 			/* --- GroupBid part ---------------- */
 			if( splittedString[CommandConfig.POSCOMMAND].equals( groupBidCommand )){
 				GroupBid gb = new GroupBid(auctionNumber,bid, servedClient, this);
 				this.addGroupBid(gb);
-				
+
 			}else{ auctionManager.bidForAuction(auctionNumber, client, bid); }
 
 		}catch( NumberFormatException nfe ){
@@ -386,7 +388,7 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 
 	@Override
 	public void overbid(String auctionDescription, String bidderName) {
-		
+
 		/*
 		String notification = splittedString[0] + CommandConfig.ARGSEPARATOR;
 		int i = 1;
@@ -394,7 +396,7 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 
 		String lastBidder = splittedString[i];
 		clientManager.sendNotification(notification, lastBidder);
-		*/
+		 */
 	}
 
 	@Override
@@ -403,29 +405,29 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 			this.sendFeedback(c, "The auction " + auction.getDescription() + " with the id " + auction.getID() + " is over!\n" +
 					"The highest bidder was " + auction.getLastBidder() + " with " + auction.getHighestValue());
 		}
-		
+
 		if( groupBids.containsKey(auction.getID()) ){
 			groupBids.remove(auction.getID());
 			if( !queuedGroupBids.isEmpty() ){
 				this.addGroupBid(queuedGroupBids.dequeue());
 			}
 		}
-		
-		
+
+
 	}
 	/* --------- GroupBid management -------------------------------- */
 	@Override
 	public void confirmGroupBid() {
 		String rejectCommand = CommandConfig.COMMANDNOTIFIER + CommandConfig.REJECTED;
 		try{
-			
+
 			splittedString = currentCommand.split(CommandConfig.ARGSEPARATOR, CommandConfig.CONFIRMTOKENCOUNT);
-			
+
 			int auctionNumber = Integer.parseInt(splittedString[CommandConfig.POSCONFIRMAUCTIONNUMBER]);
 			double bid = Double.parseDouble(splittedString[CommandConfig.POSCONFIRMBID]);
 			String groupBidder = splittedString[CommandConfig.POSCONFIRMGROUPBIDDER].toLowerCase();
-			
-			
+
+
 			if( !groupBids.containsKey(auctionNumber) ){
 				throw new ProductNotAvailableException();
 			}
@@ -482,7 +484,7 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 		int auctionNumber = gb.getAuctionNumber();
 		double bid = gb.getBid();
 		IClientThread groupBidder = gb.getGroupBidder();
-		
+
 		try{
 			auctionManager.bidForAuction(auctionNumber, groupBidder.getClientName(), bid);
 		}catch( ProductNotAvailableException pnae ){
@@ -510,7 +512,7 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 			e.printStackTrace();
 		}
 	}
-	
+
 	private void sendFeedback( String message ){ this.sendFeedback(servedClient,message); }
 
 	private void sendFeedback(IClientThread c, String message ){
@@ -545,8 +547,9 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 	public void close() {
 		Collection<IClientThread> clients = clientManager.getLoggedInClients();
 		for (IClientThread t : clients ){
-			cryptuser.remove(t.getClientName());
+			t.exit();
 		}
+		cryptuser.clear();
 		((ClientManager) clientManager).exit();
 		serverPort.exit();		
 	}
@@ -559,7 +562,7 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 		}catch(PortRangeException pre){}
 	}
 
-	
+
 	private void sendToIOUnit( String message ){ ioReceiver.processInstruction(message); }
 
 	@Override
@@ -583,15 +586,61 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 	@Override
 	public void exit() { if( servedClient.isLoggedIn() ) { this.logout(); } clientManager.shutDownClient(servedClient); }
 
-	
+
 	public void setServerTCP(ServerTCPPort stp){
 		serverPort = stp;
 	}
 
 	@Override
 	public void signedBid() {
-		
-		
+		splittedString = currentCommand.split(" ", 5);
+		int auctionId = Integer.parseInt(splittedString[1]);
+		double bid = Double.parseDouble(splittedString[2]);
+
+		if(splittedString.length == 5)
+		{
+			String [] user1 = splittedString[3].split(":");
+			String [] user2 = splittedString[4].split(":");
+
+			long timestamp = (Long.parseLong(user1[1]) + Long.parseLong(user2[1])) / 2;
+
+			String timestamp1 = CommandConfig.COMMANDNOTIFIER + CommandConfig.TIMESTAMP + CommandConfig.ARGSEPARATOR + 
+					auctionId + CommandConfig.ARGSEPARATOR + bid + CommandConfig.ARGSEPARATOR +  user1[1];
+
+			String timestamp2 = CommandConfig.COMMANDNOTIFIER + CommandConfig.TIMESTAMP + CommandConfig.ARGSEPARATOR + 
+					auctionId + CommandConfig.ARGSEPARATOR + bid + CommandConfig.ARGSEPARATOR +  user2[1];
+
+			ClientSignature c = new ClientSignature();
+
+			try {
+				if(c.verifyMessage(timestamp1, user1[2], pathToDir + user1[0] + ".pub.pem") &&	c.verifyMessage(timestamp2, user2[2], pathToDir + user2[0] + ".pub.pem"))
+				{
+					//Bid auf Auction mit Timestamp
+					if( auctionManager.isAuctionIdAvailable(auctionId))
+					{
+						try {
+							auctionManager.bidForAuction(auctionId, servedClient.getClientName(), bid);
+						} catch (ProductNotAvailableException e) {}
+
+					}else
+					{
+						try {
+							auctionManager.bidForEndedAuction(auctionId, servedClient.getClientName(), bid, timestamp);
+						} catch (ProductNotAvailableException e) {}
+					}
+				}
+				else
+				{
+					sendToIOUnit(currentCommand + "SIGNATURE FAIL");
+					//Client benachrichtigen, dass Message nicht verifiziert werden konnte
+				}
+			} catch (IOException e) {
+				//Client benachrichtigen, dass Message nicht verifiziert werden konnte
+			}
+		}
+
+
+
 	}
 
 	@Override
@@ -605,5 +654,5 @@ ILocalMessageReceiver, IOInstructionSender, IAuctionActivityReceiver{
 		clientList = clientList.replace("/", "");
 		this.sendFeedback( clientList );
 	}
-	
+
 }

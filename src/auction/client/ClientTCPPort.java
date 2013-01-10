@@ -20,6 +20,7 @@ implements INetworkSocket{
 	private BufferedReader in = null;
 	private IClientMessageForwarder nwcontroller = null;
 	private boolean offlineSignal = false;
+	private String servername = null;
 	
 	public ClientTCPPort(String host, int port, IClientMessageForwarder nwcontroller, boolean offlineSignal ) 
 			throws UnknownHostException, IOException{
@@ -32,6 +33,11 @@ implements INetworkSocket{
 
 		this.offlineSignal = offlineSignal;
 		this.start();
+	}
+	public ClientTCPPort(String host, int port, IClientMessageForwarder nwcontroller, boolean offlineSignal, String servername) 
+			throws UnknownHostException, IOException{
+		this(host, port, nwcontroller, offlineSignal);
+		this.servername = servername;
 	}
 
 	public void run(){
@@ -47,10 +53,10 @@ implements INetworkSocket{
 				if(inString == null) throw new ServerDisconnectedException();
 			}
 		}catch( IOException e ){
-			sendInfoMessageToClient("Socket inputstream closed. Logging out Client!");
+//			sendInfoMessageToClient("Socket inputstream closed. Logging out Client!");
 			sendServerDisconnectedSignal();
 		}catch( ServerDisconnectedException sde){
-			sendInfoMessageToClient("The Server is not online anymore. Client is going to Log out!");
+//			sendInfoMessageToClient("The Server is not online anymore. Client is going to Log out!");
 			sendServerDisconnectedSignal();
 		}
 		
@@ -70,7 +76,14 @@ implements INetworkSocket{
 	}
 
 	private void sendMessageToClient(String message){
-		nwcontroller.sendMessageToClient(message);
+		if(servername != null)
+		{
+			nwcontroller.sendMessageToClient(message, servername);
+		}
+		else
+		{
+			nwcontroller.sendMessageToClient(message);
+		}
 	}
 
 	@Override
