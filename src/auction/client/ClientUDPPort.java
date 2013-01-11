@@ -5,18 +5,18 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
 
-import auction.communication.ExitObserver;
-import auction.communication.ExitSender;
-import auction.communication.LocalMessageController;
-import auction.communication.MessageReceiver;
+import auction.global.communication.LocalMessageController;
+import auction.global.interfaces.IExitObserver;
+import auction.global.interfaces.IExitSender;
+import auction.global.interfaces.ILocalMessageReceiver;
 
-public class ClientUDPPort extends Thread implements ExitObserver{
+public class ClientUDPPort extends Thread implements IExitObserver{
 
-	private MessageReceiver localMessenger = null;
+	private ILocalMessageReceiver localMessenger = null;
 	private int udpPort = -1;
 	private DatagramSocket socket = null;
 
-	public ClientUDPPort(LocalMessageController lmc, int udpPort, ExitSender e) throws SocketException{
+	public ClientUDPPort(LocalMessageController lmc, int udpPort, IExitSender e) throws SocketException{
 		this.udpPort = udpPort;
 		localMessenger = lmc;
 		e.registerExitObserver(this);
@@ -50,7 +50,7 @@ public class ClientUDPPort extends Thread implements ExitObserver{
 	}
 	
 	private void sendMessageToLocalMessenger(String message){
-		localMessenger.receiveMessage(message);
+		localMessenger.receiveLocalMessage(message);
 	}
 
 	@Override

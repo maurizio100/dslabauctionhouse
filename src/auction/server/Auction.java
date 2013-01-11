@@ -6,12 +6,13 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.TimerTask;
+import auction.server.interfaces.IAuctionMessageReceiver;
 
 public class Auction extends TimerTask{
 
 	public static final String DATE_FORMAT_NOW = "dd.MM.yyyy HH:mm";
 
-	private AuctionEndReceiver notificationReceiver = null;
+	private IAuctionMessageReceiver notificationReceiver = null;
 	private String owner = null;
 	private String highestBidder = "none";
 	private String description = null;
@@ -22,30 +23,30 @@ public class Auction extends TimerTask{
 	private DateFormat df = new SimpleDateFormat(DATE_FORMAT_NOW);
 	private int id;
 	
-	public Auction(AuctionManager manager, ClientThread owner, String description, int duration, int id){
+	public Auction(IAuctionMessageReceiver manager, String owner, String description, int duration, int id){
 		notificationReceiver = manager;
 		this.description = description; 
 		this.id = id;
-		this.owner = owner.getClientName();
+		this.owner = owner;
 		
 		endDate = new GregorianCalendar();
 		endDate.add(Calendar.SECOND, duration);
 		Date d = endDate.getTime();
 
-		owner.receiveFeedback("An auction \'" +description+ "\' with id " + id + " has been created and will end on " +
+		manager.receiveAuctionCreateMessage("An auction \'" +description+ "\' with id " + id + " has been created and will end on " +
 				df.format(d));
 	}
 	
+
 	public void run(){
 		Date now = new Date();
 		if( endDate.getTime().getTime() <= now.getTime()){
-			notificationReceiver.notifyClientAuctionEnded(id);
+			notificationReceiver.notifyAuctionEnded(id);
 			this.cancel();
 		}
 		
 	}
 	
-
 	public boolean setNewPrice(String bidder, double price) {
 		if( actualValue < price ){
 			actualValue = price;
@@ -81,5 +82,9 @@ public class Auction extends TimerTask{
 
 	public double getHighestValue() {
 		return actualValue;
+	}
+	
+	public long getEndDate() {
+		return endDate.getTimeInMillis();
 	}
 }

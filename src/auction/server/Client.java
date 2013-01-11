@@ -7,17 +7,20 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.Socket;
 
-import auction.communication.CommandReceiver;
-import auction.communication.MessageReceiver;
+import auction.global.config.CommandConfig;
+import auction.global.interfaces.ICommandReceiver;
+import auction.global.interfaces.ICrypt;
+import auction.global.interfaces.ILocalMessageReceiver;
+import auction.server.interfaces.IClientThread;
 
-public class Client implements Runnable, ClientThread{
+public class Client implements Runnable, IClientThread{
 
 	private Socket activeSocket = null;
 	private BufferedReader input = null;
 	private PrintWriter output = null;
 
-	private CommandReceiver commandController = null;
-	private MessageReceiver localMessenger = null;
+	private ICommandReceiver commandController = null;
+	private ILocalMessageReceiver localMessenger = null;
 
 	private String clientName = null;
 	private InetAddress host = null;
@@ -25,7 +28,7 @@ public class Client implements Runnable, ClientThread{
 
 	private boolean loggedIn = false;
 
-	public Client(Socket socket, CommandReceiver controller, MessageReceiver rcv) throws IOException{
+	public Client(Socket socket, ICommandReceiver controller, ILocalMessageReceiver rcv) throws IOException{
 		activeSocket = socket;
 		commandController = controller;
 		host = socket.getInetAddress();
@@ -35,12 +38,10 @@ public class Client implements Runnable, ClientThread{
 		output = new PrintWriter(activeSocket.getOutputStream(),true);
 	}
 
-	public void setLoginName(String client){
-		clientName = client;
-	}
 
-	public void sendFeedback(String feedback){
+	public void receiveFeedback(String feedback){
 		output.println(feedback);
+		output.flush();
 	}
 
 	@Override
@@ -48,13 +49,13 @@ public class Client implements Runnable, ClientThread{
 		String inputString;
 
 		try{	
-			while(!Thread.interrupted()){
+			while( true ){
 				if( (inputString = input.readLine()) != null ){
 					this.sendToCommandReceiver(inputString);
 				}
 			}
 		}catch(IOException e){
-			this.sendToLocalMessenger("There was an IOError by reading from Socket.");
+			this.sendToLocalMessenger("Client at Host: " + host + " not connected anymore.");
 		}
 	}
 
@@ -63,24 +64,14 @@ public class Client implements Runnable, ClientThread{
 	}
 
 	private void sendToLocalMessenger( String message ){
-		localMessenger.receiveMessage(message);
-	}
-
-	@Override
-	public void receiveFeedback(String feedback) {
-		output.println(feedback);
-		output.flush();
+		localMessenger.receiveLocalMessage(message);
 	}
 
 	@Override
 	public void exit(){
 		try{
-			this.sendToLocalMessenger("Client at Host: " + host + " disconnected and logged out.");
-			if(loggedIn){
-				sendToCommandReceiver("!logout");		
-			}
 			activeSocket.close();
-			Thread.currentThread().interrupt();
+		//	Thread.currentThread().interrupt();
 		}catch( IOException e){}
 		finally{
 			try{ input.close(); }catch(IOException e){}
@@ -88,6 +79,11 @@ public class Client implements Runnable, ClientThread{
 		}
 	}
 
+
+	public void setLoginName(String client){
+		clientName = client;
+	}
+	
 	@Override
 	public String getClientName() {
 		return clientName;
@@ -108,11 +104,13 @@ public class Client implements Runnable, ClientThread{
 		this.loggedIn = true;
 		clientName = name;
 		udpPort = preferredUDPPort;
+		
 
 	}
 	@Override
 	public void setLogout(){
 		this.loggedIn = false;
+		this.sendToLocalMessenger("Client " + this.clientName + " logged out.");
 	}
 
 	@Override
